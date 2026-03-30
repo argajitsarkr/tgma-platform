@@ -7,9 +7,11 @@ RUN apt-get update -qq \
 
 WORKDIR /app
 
-# Install Python dependencies (skip WeasyPrint — PDF export optional)
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir $(grep -v WeasyPrint requirements.txt)
+RUN grep -v WeasyPrint requirements.txt > reqs.txt \
+    && pip install --no-cache-dir -r reqs.txt \
+    && rm reqs.txt
 
 # Copy application
 COPY . .
