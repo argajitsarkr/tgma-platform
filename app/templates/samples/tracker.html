@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Sample Tracker — TGMA Platform{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Sample Tracker</h4>
+    <div>
+        <a href="{{ url_for('samples.register') }}" class="btn btn-primary btn-sm">+ Register Samples</a>
+        <a href="{{ url_for('samples.freezer') }}" class="btn btn-outline-info btn-sm">Freezer Map</a>
+        <a href="{{ url_for('samples.dispatch') }}" class="btn btn-outline-warning btn-sm">Batch Dispatch</a>
+        <a href="{{ url_for('samples.qc') }}" class="btn btn-outline-secondary btn-sm">QC View</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small mb-0">Sample Type</label>
+                <select name="type" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="stool" {{ 'selected' if request.args.get('type') == 'stool' }}>Stool</option>
+                    <option value="blood" {{ 'selected' if request.args.get('type') == 'blood' }}>Blood</option>
+                    <option value="saliva_1" {{ 'selected' if request.args.get('type') == 'saliva_1' }}>Saliva (Awakening)</option>
+                    <option value="saliva_2" {{ 'selected' if request.args.get('type') == 'saliva_2' }}>Saliva (30min)</option>
+                    <option value="saliva_3" {{ 'selected' if request.args.get('type') == 'saliva_3' }}>Saliva (4PM)</option>
+                    <option value="saliva_4" {{ 'selected' if request.args.get('type') == 'saliva_4' }}>Saliva (Bedtime)</option>
+                    <option value="dna_extract" {{ 'selected' if request.args.get('type') == 'dna_extract' }}>DNA Extract</option>
+                    <option value="serum" {{ 'selected' if request.args.get('type') == 'serum' }}>Serum</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-0">Storage Status</label>
+                <select name="storage_status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="stored" {{ 'selected' if request.args.get('storage_status') == 'stored' }}>Stored</option>
+                    <option value="dispatched" {{ 'selected' if request.args.get('storage_status') == 'dispatched' }}>Dispatched</option>
+                    <option value="in_transit" {{ 'selected' if request.args.get('storage_status') == 'in_transit' }}>In Transit</option>
+                    <option value="used" {{ 'selected' if request.args.get('storage_status') == 'used' }}>Used</option>
+                    <option value="depleted" {{ 'selected' if request.args.get('storage_status') == 'depleted' }}>Depleted</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                <a href="{{ url_for('samples.tracker') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Sample ID</th>
+                    <th>Participant</th>
+                    <th>Type</th>
+                    <th>Collection</th>
+                    <th>Storage</th>
+                    <th>Location</th>
+                    <th>Temp</th>
+                    <th>Dispatch</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in samples %}
+                <tr>
+                    <td><a href="{{ url_for('samples.detail', sample_id=s.sample_id) }}">{{ s.sample_id }}</a></td>
+                    <td><a href="{{ url_for('participants.detail', tracking_id=s.tracking_id) }}">{{ s.tracking_id }}</a></td>
+                    <td>{{ s.sample_type }}</td>
+                    <td><span class="badge bg-{{ 'success' if s.collection_status == 'collected' else 'danger' }}">{{ s.collection_status }}</span></td>
+                    <td><span class="badge bg-{{ 'info' if s.storage_status == 'stored' else 'warning' if s.storage_status == 'dispatched' else 'secondary' }}">{{ s.storage_status }}</span></td>
+                    <td><small>{{ s.freezer_location }}</small></td>
+                    <td>{{ s.storage_temp or '-' }}°C</td>
+                    <td>{{ s.dispatched_to or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted">No samples found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<p class="text-muted mt-2 small">Showing {{ samples | length }} samples</p>
+{% endblock %}

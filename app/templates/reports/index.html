@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Reports — TGMA Platform{% endblock %}
+{% block content %}
+<h4 class="mb-3">Reports</h4>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">ICMR Progress Report</h5>
+                <p class="card-text text-muted">Enrollment vs targets, sample collection progress, budget utilization. For 10-month progress submission.</p>
+                <a href="{{ url_for('reports.icmr_progress') }}" class="btn btn-primary">View Report</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Enrollment Data (CSV)</h5>
+                <p class="card-text text-muted">Export all participant enrollment data as CSV for external analysis.</p>
+                <a href="{{ url_for('reports.enrollment_csv') }}" class="btn btn-outline-success">Download CSV</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Sample Inventory (CSV)</h5>
+                <p class="card-text text-muted">Complete sample inventory with storage locations and dispatch status.</p>
+                <a href="{{ url_for('reports.sample_inventory_csv') }}" class="btn btn-outline-success">Download CSV</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ sample.sample_id }} — TGMA Platform{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">{{ sample.sample_id }}</h4>
+        <span class="text-muted">{{ sample.sample_type }} sample for
+            <a href="{{ url_for('participants.detail', tracking_id=sample.tracking_id) }}">{{ sample.tracking_id }}</a>
+        </span>
+    </div>
+    <a href="{{ url_for('samples.tracker') }}" class="btn btn-outline-secondary btn-sm">Back to Tracker</a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Collection</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th>Status</th><td><span class="badge bg-{{ 'success' if sample.collection_status == 'collected' else 'danger' }}">{{ sample.collection_status }}</span></td></tr>
+                    <tr><th>Date/Time</th><td>{{ sample.collection_datetime or '-' }}</td></tr>
+                    <tr><th>Barcode Scanned</th><td>{{ 'Yes' if sample.barcode_scanned else 'No' }}</td></tr>
+                    {% if sample.sample_type == 'stool' %}
+                    <tr><th>Bristol Scale</th><td>{{ sample.bristol_scale or '-' }}</td></tr>
+                    {% endif %}
+                    {% if sample.sample_type == 'blood' %}
+                    <tr><th>Fasting Confirmed</th><td>{{ 'Yes' if sample.fasting_confirmed else 'No' if sample.fasting_confirmed is not none else '-' }}</td></tr>
+                    <tr><th>Last Meal Time</th><td>{{ sample.last_meal_time or '-' }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Storage</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th>Status</th><td><span class="badge bg-{{ 'info' if sample.storage_status == 'stored' else 'warning' if sample.storage_status == 'dispatched' else 'secondary' }}">{{ sample.storage_status }}</span></td></tr>
+                    <tr><th>Location</th><td>{{ sample.freezer_location }}</td></tr>
+                    <tr><th>Temperature</th><td>{{ sample.storage_temp or '-' }}°C</td></tr>
+                    <tr><th>Storage Date</th><td>{{ sample.storage_date or '-' }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if sample.dispatched_to %}
+<div class="card mb-3">
+    <div class="card-header">Dispatch</div>
+    <div class="card-body">
+        <table class="table table-sm mb-0">
+            <tr><th>Vendor</th><td>{{ sample.dispatched_to }}</td></tr>
+            <tr><th>Dispatch Date</th><td>{{ sample.dispatch_date or '-' }}</td></tr>
+            <tr><th>Tracking Number</th><td>{{ sample.dispatch_tracking_number or '-' }}</td></tr>
+            <tr><th>Manifest ID</th><td>{{ sample.dispatch_manifest_id or '-' }}</td></tr>
+            <tr><th>Received by Vendor</th><td>{{ sample.received_by_vendor_date or '-' }}</td></tr>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if sample.dna_concentration_ng_ul is not none %}
+<div class="card mb-3">
+    <div class="card-header">QC Results</div>
+    <div class="card-body">
+        <table class="table table-sm mb-0">
+            <tr><th>DNA Concentration</th><td>{{ sample.dna_concentration_ng_ul }} ng/uL</td></tr>
+            <tr><th>A260/A280</th><td>{{ sample.a260_a280_ratio or '-' }}</td></tr>
+            <tr><th>Quantity</th><td>{{ sample.quantity_ug or '-' }} ug</td></tr>
+            <tr><th>QC Pass</th><td><span class="badge bg-{{ 'success' if sample.qc_pass else 'danger' if sample.qc_pass is not none else 'secondary' }}">{{ 'Pass' if sample.qc_pass else 'Fail' if sample.qc_pass is not none else 'Pending' }}</span></td></tr>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if sample.notes %}
+<div class="card mb-3">
+    <div class="card-header">Notes</div>
+    <div class="card-body">{{ sample.notes }}</div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — TGMA Platform{% endblock %}
+{% block content %}
+<h4 class="mb-4">Study Dashboard</h4>
+
+<!-- Enrollment Progress -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h2 class="fw-bold text-primary">{{ total_enrolled }}</h2>
+                <p class="mb-1">of {{ target }} enrolled</p>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-primary" style="width: {{ (total_enrolled / target * 100) | round(1) }}%"></div>
+                </div>
+                <small class="text-muted">{{ (total_enrolled / target * 100) | round(1) }}%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h2 class="fw-bold text-success">{{ total_samples }}</h2>
+                <p class="mb-1">Samples Collected</p>
+                <span class="badge bg-info">{{ dispatched_samples }} dispatched</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h2 class="fw-bold text-warning">{{ complete_count }}</h2>
+                <p class="mb-0">Complete Sample Sets</p>
+                <small class="text-muted">(stool + blood + 4 saliva)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Enrollment by District</div>
+            <div class="card-body">
+                <canvas id="districtChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Enrollment by Lifestyle Group</div>
+            <div class="card-body">
+                <canvas id="lifestyleChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget & Gender -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Budget Utilization (Lakhs INR)</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td>Sequencing ({{ budget_sequencing }}L)</td>
+                        <td class="text-end">
+                            <span class="fw-bold">{{ '%.1f' | format(spent_sequencing) }}L spent</span>
+                            <div class="progress mt-1" style="height: 5px;">
+                                <div class="progress-bar bg-info" style="width: {{ (spent_sequencing / budget_sequencing * 100) if budget_sequencing else 0 }}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Hormone Assays ({{ budget_hormones }}L)</td>
+                        <td class="text-end"><span class="text-muted">Tracking pending</span></td>
+                    </tr>
+                    <tr>
+                        <td>Shipment ({{ budget_shipment }}L)</td>
+                        <td class="text-end"><span class="text-muted">Tracking pending</span></td>
+                    </tr>
+                    <tr class="table-light">
+                        <td class="fw-bold">Total Budget</td>
+                        <td class="text-end fw-bold">{{ budget_total }}L</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Gender Distribution</div>
+            <div class="card-body">
+                <canvas id="genderChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card mb-4">
+    <div class="card-header">Recent Enrollments</div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Tracking ID</th>
+                    <th>Name</th>
+                    <th>District</th>
+                    <th>Gender</th>
+                    <th>Enrolled</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in recent %}
+                <tr>
+                    <td><a href="{{ url_for('participants.detail', tracking_id=p.tracking_id) }}">{{ p.tracking_id }}</a></td>
+                    <td>{{ p.full_name }}</td>
+                    <td>{{ p.display_district }}</td>
+                    <td>{{ p.gender }}</td>
+                    <td>{{ p.enrollment_date or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">No participants enrolled yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// District chart
+new Chart(document.getElementById('districtChart'), {
+    type: 'bar',
+    data: {
+        labels: ['West Tripura', 'South Tripura', 'Dhalai'],
+        datasets: [{
+            label: 'Enrolled',
+            data: [{{ district_counts.get('WT', 0) }}, {{ district_counts.get('ST', 0) }}, {{ district_counts.get('DL', 0) }}],
+            backgroundColor: '#0d6efd'
+        }, {
+            label: 'Target',
+            data: [{{ district_targets.get('WT', 0) }}, {{ district_targets.get('ST', 0) }}, {{ district_targets.get('DL', 0) }}],
+            backgroundColor: '#dee2e6'
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+});
+
+// Lifestyle chart
+new Chart(document.getElementById('lifestyleChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Active/Traditional', 'Active/Processed', 'Sedentary/Traditional', 'Sedentary/Processed'],
+        datasets: [{
+            label: 'Enrolled',
+            data: [{{ lifestyle_counts.get('AT', 0) }}, {{ lifestyle_counts.get('AP', 0) }}, {{ lifestyle_counts.get('SDT', 0) }}, {{ lifestyle_counts.get('SP', 0) }}],
+            backgroundColor: ['#198754', '#0dcaf0', '#ffc107', '#dc3545']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 110 } } }
+});
+
+// Gender chart
+new Chart(document.getElementById('genderChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Male', 'Female'],
+        datasets: [{
+            data: [{{ gender_counts.get('M', 0) }}, {{ gender_counts.get('F', 0) }}],
+            backgroundColor: ['#0d6efd', '#e91e8c']
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+</script>
+{% endblock %}

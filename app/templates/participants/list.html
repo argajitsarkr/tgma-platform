@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Participants — TGMA Platform{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Participant Registry</h4>
+    {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+    <a href="{{ url_for('participants.create') }}" class="btn btn-primary btn-sm">+ New Participant</a>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small mb-0">District</label>
+                <select id="filterDistrict" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="WT">West Tripura</option>
+                    <option value="ST">South Tripura</option>
+                    <option value="DL">Dhalai</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-0">Gender</label>
+                <select id="filterGender" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-0">Status</label>
+                <select id="filterStatus" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="enrolled">Enrolled</option>
+                    <option value="completed">Completed</option>
+                    <option value="withdrawn">Withdrawn</option>
+                    <option value="excluded">Excluded</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-0">Lifestyle</label>
+                <select id="filterLifestyle" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="AT">Active/Traditional</option>
+                    <option value="AP">Active/Processed</option>
+                    <option value="SDT">Sedentary/Traditional</option>
+                    <option value="SP">Sedentary/Processed</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table id="participantsTable" class="table table-sm table-hover mb-0" style="width:100%">
+            <thead class="table-light">
+                <tr>
+                    <th>Tracking ID</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>District</th>
+                    <th>Lifestyle</th>
+                    <th>Status</th>
+                    <th>Samples</th>
+                    <th>Enrolled</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var table = $('#participantsTable').DataTable({
+    processing: true,
+    serverSide: true,
+    ajax: {
+        url: '{{ url_for("participants.api_data") }}',
+        data: function(d) {
+            d.district = $('#filterDistrict').val();
+            d.gender = $('#filterGender').val();
+            d.status = $('#filterStatus').val();
+            d.lifestyle = $('#filterLifestyle').val();
+        }
+    },
+    columns: [
+        { data: 'tracking_id', render: function(data) {
+            return '<a href="/participants/' + data + '">' + data + '</a>';
+        }},
+        { data: 'full_name' },
+        { data: 'age' },
+        { data: 'gender' },
+        { data: 'district' },
+        { data: 'lifestyle_group' },
+        { data: 'enrollment_status', render: function(data) {
+            var cls = {'enrolled': 'primary', 'completed': 'success', 'withdrawn': 'warning', 'excluded': 'danger'};
+            return '<span class="badge bg-' + (cls[data] || 'secondary') + '">' + data + '</span>';
+        }},
+        { data: 'samples' },
+        { data: 'enrollment_date' }
+    ],
+    pageLength: 25,
+    order: [[8, 'desc']],
+    dom: 'Bfrtip',
+    language: { search: 'Search:' }
+});
+
+$('#filterDistrict, #filterGender, #filterStatus, #filterLifestyle').on('change', function() {
+    table.ajax.reload();
+});
+
+function resetFilters() {
+    $('#filterDistrict, #filterGender, #filterStatus, #filterLifestyle').val('');
+    table.ajax.reload();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Login — TGMA Platform{% endblock %}
+{% block content_unauth %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h3 class="text-center mb-1 fw-bold">TGMA Platform</h3>
+                <p class="text-center text-muted mb-4">Tripura Gut Microbiome in Adolescents</p>
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username"
+                               required autofocus autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password"
+                               required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Sign In</button>
+                </form>
+                <hr>
+                <p class="text-center text-muted small mb-0">
+                    ICMR Grant: IIRPSG-2025-01-03722<br>
+                    Tripura University &bull; Internal Use Only
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

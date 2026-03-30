@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Freezer Inventory — TGMA Platform{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Freezer Inventory</h4>
+    <a href="{{ url_for('samples.tracker') }}" class="btn btn-outline-secondary btn-sm">Back to Tracker</a>
+</div>
+
+{% if freezers %}
+{% for fid, samples in freezers.items() %}
+<div class="card mb-4">
+    <div class="card-header">
+        <strong>Freezer {{ fid }}</strong>
+        <span class="badge bg-info ms-2">{{ samples | length }} samples</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Sample ID</th>
+                    <th>Participant</th>
+                    <th>Type</th>
+                    <th>Rack</th>
+                    <th>Shelf</th>
+                    <th>Box</th>
+                    <th>Position</th>
+                    <th>Temp</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in samples %}
+                <tr>
+                    <td><a href="{{ url_for('samples.detail', sample_id=s.sample_id) }}">{{ s.sample_id }}</a></td>
+                    <td><a href="{{ url_for('participants.detail', tracking_id=s.tracking_id) }}">{{ s.tracking_id }}</a></td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if s.sample_type == 'stool' else 'danger' if s.sample_type == 'blood' else 'primary' if 'saliva' in s.sample_type else 'info' }}">
+                            {{ s.sample_type }}
+                        </span>
+                    </td>
+                    <td>{{ s.rack or '-' }}</td>
+                    <td>{{ s.shelf or '-' }}</td>
+                    <td>{{ s.box_number or '-' }}</td>
+                    <td>{{ s.box_row }}{{ s.box_column }}</td>
+                    <td>{{ s.storage_temp or '-' }}°C</td>
+                    <td><span class="badge bg-info">{{ s.storage_status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body text-center text-muted">
+        No samples currently stored in freezers.
+    </div>
+</div>
+{% endif %}
+
+<div class="card mt-3">
+    <div class="card-header">Legend</div>
+    <div class="card-body">
+        <span class="badge bg-success me-2">Stool</span>
+        <span class="badge bg-danger me-2">Blood</span>
+        <span class="badge bg-primary me-2">Saliva</span>
+        <span class="badge bg-info me-2">DNA / Serum</span>
+    </div>
+</div>
+{% endblock %}

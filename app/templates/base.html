@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TGMA Platform{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/datatables.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar -->
+        <div class="sidebar bg-dark text-white" id="sidebar">
+            <div class="sidebar-header p-3 border-bottom border-secondary">
+                <h5 class="mb-0 fw-bold">TGMA Platform</h5>
+                <small class="text-muted">Tripura Gut Microbiome</small>
+            </div>
+            <nav class="nav flex-column p-2">
+                <a class="nav-link text-white {% if request.endpoint == 'dashboard.index' %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('dashboard.index') }}">
+                    <span class="me-2">&#9632;</span> Dashboard
+                </a>
+                <a class="nav-link text-white {% if request.endpoint and 'participants' in request.endpoint %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('participants.list_participants') }}">
+                    <span class="me-2">&#9632;</span> Participants
+                </a>
+                <a class="nav-link text-white {% if request.endpoint and 'samples' in request.endpoint %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('samples.tracker') }}">
+                    <span class="me-2">&#9632;</span> Samples
+                </a>
+                <a class="nav-link text-white {% if request.endpoint and 'ids' in request.endpoint %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('ids.index') }}">
+                    <span class="me-2">&#9632;</span> ID Allocation
+                </a>
+                {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+                <a class="nav-link text-white {% if request.endpoint and 'diagnostics' in request.endpoint %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('diagnostics.index') }}">
+                    <span class="me-2">&#9632;</span> Diagnostics Import
+                </a>
+                {% endif %}
+                <a class="nav-link text-white {% if request.endpoint and 'quality' in request.endpoint %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('quality.dashboard') }}">
+                    <span class="me-2">&#9632;</span> Data Quality
+                </a>
+                {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+                <a class="nav-link text-white {% if request.endpoint and 'ml' in request.endpoint %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('ml.status') }}">
+                    <span class="me-2">&#9632;</span> ML Pipeline
+                </a>
+                {% endif %}
+                {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+                <a class="nav-link text-white {% if request.endpoint and 'reports' in request.endpoint %}active bg-primary rounded{% endif %}"
+                   href="{{ url_for('reports.index') }}">
+                    <span class="me-2">&#9632;</span> Reports
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+
+        <!-- Page Content -->
+        <div class="flex-grow-1" id="page-content">
+            <!-- Top bar -->
+            <nav class="navbar navbar-light bg-white border-bottom px-3 py-2">
+                <button class="btn btn-sm btn-outline-secondary d-md-none" id="sidebarToggle">
+                    &#9776;
+                </button>
+                <span class="navbar-text ms-auto">
+                    <span class="badge bg-{{ 'primary' if current_user.role == 'pi' else 'success' if current_user.role == 'co_pi' else 'info' if current_user.role == 'bioinformatician' else 'secondary' }} me-2">
+                        {{ current_user.role | replace('_', ' ') | upper }}
+                    </span>
+                    {{ current_user.full_name }}
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-danger ms-2">Logout</a>
+                </span>
+            </nav>
+
+            <!-- Flash messages -->
+            <div class="container-fluid mt-2">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Main content -->
+            <main class="container-fluid p-3">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    {% else %}
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        {% block content_unauth %}{% endblock %}
+    </main>
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/datatables.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/chart.min.js') }}"></script>
+    <script>
+        // Sidebar toggle for mobile
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

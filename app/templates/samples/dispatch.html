@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Batch Dispatch — TGMA Platform{% endblock %}
+{% block content %}
+<h4 class="mb-3">Batch Dispatch to Sequencing Vendor</h4>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('samples.dispatch') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Vendor</label>
+                    <input type="text" class="form-control" name="vendor" value="Nucleome Informatics" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Shipment Tracking Number</label>
+                    <input type="text" class="form-control" name="tracking_number" placeholder="Courier tracking #">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Manifest ID</label>
+                    <input type="text" class="form-control" name="manifest_id" placeholder="e.g., BATCH-001">
+                </div>
+            </div>
+
+            <p class="text-muted">Select stool samples to dispatch (batch size target: 32 samples):</p>
+
+            {% if eligible %}
+            <div class="mb-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">Select All</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">Deselect All</button>
+                <span class="ms-3 text-muted" id="selectedCount">0 selected</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th><input type="checkbox" id="selectAllCb" onchange="toggleAll(this)"></th>
+                            <th>Sample ID</th>
+                            <th>Participant</th>
+                            <th>Storage Location</th>
+                            <th>Storage Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in eligible %}
+                        <tr>
+                            <td><input type="checkbox" name="sample_ids" value="{{ s.sample_id }}" class="sample-cb" onchange="updateCount()"></td>
+                            <td>{{ s.sample_id }}</td>
+                            <td><a href="{{ url_for('participants.detail', tracking_id=s.tracking_id) }}">{{ s.tracking_id }}</a></td>
+                            <td>{{ s.freezer_location }}</td>
+                            <td>{{ s.storage_date or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="submit" class="btn btn-warning" onclick="return confirm('Dispatch selected samples? This will update their status.')">
+                Dispatch Selected Samples
+            </button>
+            {% else %}
+            <div class="alert alert-info">No stool samples currently in storage eligible for dispatch.</div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectAll() { document.querySelectorAll('.sample-cb').forEach(cb => cb.checked = true); updateCount(); }
+function deselectAll() { document.querySelectorAll('.sample-cb').forEach(cb => cb.checked = false); updateCount(); }
+function toggleAll(master) { document.querySelectorAll('.sample-cb').forEach(cb => cb.checked = master.checked); updateCount(); }
+function updateCount() {
+    var n = document.querySelectorAll('.sample-cb:checked').length;
+    document.getElementById('selectedCount').textContent = n + ' selected';
+}
+</script>
+{% endblock %}

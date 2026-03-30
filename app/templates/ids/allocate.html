@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}ID Allocation — TGMA Platform{% endblock %}
+{% block content %}
+<h4 class="mb-3">Participant ID Allocation</h4>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card mb-3">
+            <div class="card-header">Allocate New IDs</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ids.allocate') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label">District</label>
+                            <select class="form-select" name="district" required>
+                                <option value="WT">West Tripura</option>
+                                <option value="ST">South Tripura</option>
+                                <option value="DL">Dhalai</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Gender</label>
+                            <select class="form-select" name="gender" required>
+                                <option value="M">Male</option>
+                                <option value="F">Female</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Count</label>
+                            <input type="number" class="form-control" name="count" value="2" min="1" max="50" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Field Worker</label>
+                            <input type="text" class="form-control" name="field_worker" placeholder="Name of field worker">
+                        </div>
+                        <div class="col-12 mt-2">
+                            <button type="submit" class="btn btn-primary">Allocate IDs</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sequence Summary -->
+        <div class="card">
+            <div class="card-header">Current Sequence Status</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>District</th><th>Gender</th><th>Last Seq</th><th>Next</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for key, info in summaries.items() %}
+                        <tr>
+                            <td>{{ info.district }}</td>
+                            <td>{{ info.gender }}</td>
+                            <td>{{ '%04d' | format(info.last_sequence) }}</td>
+                            <td class="fw-bold">{{ '%04d' | format(info.next_sequence) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">Allocation History</div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tracking ID</th>
+                            <th>Allocated To</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in allocations %}
+                        <tr>
+                            <td><code>{{ a.tracking_id }}</code></td>
+                            <td>{{ a.allocated_to or '-' }}</td>
+                            <td>{{ a.allocated_date or '-' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if a.status == 'allocated' else 'success' if a.status == 'used' else 'warning' if a.status == 'returned' else 'danger' }}">
+                                    {{ a.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if a.status == 'allocated' %}
+                                <form method="POST" action="{{ url_for('ids.update_status', tracking_id=a.tracking_id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="status" value="used">
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Mark as used">Used</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('ids.update_status', tracking_id=a.tracking_id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="status" value="returned">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Return">Return</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('ids.update_status', tracking_id=a.tracking_id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="status" value="void">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Void">Void</button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted small">{{ a.used_date or '' }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted">No IDs allocated yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

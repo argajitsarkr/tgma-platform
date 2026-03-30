@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Data Quality — TGMA Platform{% endblock %}
+{% block content %}
+<h4 class="mb-3">Data Quality Dashboard</h4>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h3 class="fw-bold text-primary">{{ total_participants }}</h3>
+                <small>Total Participants</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-{{ 'success' if gps_issues | length == 0 else 'danger' }}">
+            <div class="card-body text-center">
+                <h3 class="fw-bold text-{{ 'success' if gps_issues | length == 0 else 'danger' }}">{{ gps_issues | length }}</h3>
+                <small>GPS Issues</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-{{ 'success' if outliers | length == 0 else 'warning' }}">
+            <div class="card-body text-center">
+                <h3 class="fw-bold text-{{ 'success' if outliers | length == 0 else 'warning' }}">{{ outliers | length }}</h3>
+                <small>Anthropometric Outliers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-{{ 'success' if duplicates | length == 0 else 'danger' }}">
+            <div class="card-body text-center">
+                <h3 class="fw-bold text-{{ 'success' if duplicates | length == 0 else 'danger' }}">{{ duplicates | length }}</h3>
+                <small>Potential Duplicates</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Missing Data -->
+<div class="card mb-4">
+    <div class="card-header">Missing Data Summary</div>
+    <div class="card-body">
+        <div class="row">
+            {% for field, count in field_checks.items() %}
+            <div class="col-md-3 mb-2">
+                <div class="d-flex justify-content-between">
+                    <span>{{ field | replace('_', ' ') | title }}</span>
+                    <span class="badge bg-{{ 'danger' if count > 0 else 'success' }}">{{ count }} missing</span>
+                </div>
+                <div class="progress" style="height: 4px;">
+                    {% set pct = ((total_participants - count) / total_participants * 100) if total_participants > 0 else 100 %}
+                    <div class="progress-bar bg-{{ 'success' if pct >= 90 else 'warning' if pct >= 70 else 'danger' }}"
+                         style="width: {{ pct }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- GPS Issues -->
+{% if gps_issues %}
+<div class="card mb-4">
+    <div class="card-header text-danger">GPS Out-of-Bounds (Tripura: 22.9-24.5°N, 91.1-92.3°E)</div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Tracking ID</th><th>Name</th><th>Latitude</th><th>Longitude</th></tr></thead>
+            <tbody>
+                {% for p in gps_issues %}
+                <tr>
+                    <td><a href="{{ url_for('participants.detail', tracking_id=p.tracking_id) }}">{{ p.tracking_id }}</a></td>
+                    <td>{{ p.full_name }}</td>
+                    <td class="text-danger">{{ p.gps_latitude }}</td>
+                    <td class="text-danger">{{ p.gps_longitude }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Outliers -->
+{% if outliers %}
+<div class="card mb-4">
+    <div class="card-header text-warning">Anthropometric Outliers (|Z| > 3 SD)</div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Tracking ID</th><th>Field</th><th>Value</th><th>Z-Score</th></tr></thead>
+            <tbody>
+                {% for o in outliers %}
+                <tr>
+                    <td><a href="{{ url_for('participants.detail', tracking_id=o.tracking_id) }}">{{ o.tracking_id }}</a></td>
+                    <td>{{ o.field }}</td>
+                    <td>{{ o.value }}</td>
+                    <td class="text-danger fw-bold">{{ o.z_score }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Duplicates -->
+{% if duplicates %}
+<div class="card mb-4">
+    <div class="card-header text-danger">Potential Duplicates (Same Name + DOB)</div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Name</th><th>DOB</th><th>Count</th><th>Tracking IDs</th></tr></thead>
+            <tbody>
+                {% for d in duplicates %}
+                <tr>
+                    <td>{{ d.name }}</td>
+                    <td>{{ d.dob }}</td>
+                    <td>{{ d.count }}</td>
+                    <td>
+                        {% for tid in d.tracking_ids %}
+                        <a href="{{ url_for('participants.detail', tracking_id=tid) }}">{{ tid }}</a>{{ ', ' if not loop.last }}
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Incomplete Sample Sets -->
+<div class="card mb-4">
+    <div class="card-header">Incomplete Sample Sets ({{ incomplete_participants | length }} participants)</div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Tracking ID</th><th>Name</th><th>Missing Samples</th></tr></thead>
+            <tbody>
+                {% for ip in incomplete_participants %}
+                <tr>
+                    <td><a href="{{ url_for('participants.detail', tracking_id=ip.tracking_id) }}">{{ ip.tracking_id }}</a></td>
+                    <td>{{ ip.full_name }}</td>
+                    <td>
+                        {% for ms in ip.missing_samples %}
+                        <span class="badge bg-danger">{{ ms }}</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-center text-success">All enrolled participants have complete sample sets!</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

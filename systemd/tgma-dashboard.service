@@ -1,0 +1,27 @@
+[Unit]
+Description=TGMA Research Data Platform (Gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=tgma
+Group=tgma
+WorkingDirectory=/opt/tgma-platform
+Environment="PATH=/opt/tgma-platform/.venv/bin:/usr/bin"
+EnvironmentFile=/opt/tgma-platform/.env
+ExecStart=/opt/tgma-platform/.venv/bin/gunicorn \
+    --bind 127.0.0.1:8000 \
+    --workers 4 \
+    --timeout 120 \
+    --access-logfile /var/log/tgma/access.log \
+    --error-logfile /var/log/tgma/error.log \
+    wsgi:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

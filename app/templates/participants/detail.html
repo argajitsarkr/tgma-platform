@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% block title %}{{ p.tracking_id if p else 'New Participant' }} — TGMA Platform{% endblock %}
+{% block content %}
+
+{% if create_mode %}
+<h4 class="mb-3">Enroll New Participant</h4>
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('participants.create') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tracking ID</label>
+                    <input type="text" class="form-control" name="tracking_id" placeholder="TGMA-WT-F-0001" required pattern="TGMA-(WT|ST|DL)-(M|F)-\d{4}">
+                    <small class="text-muted">Format: TGMA-XX-X-XXXX</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control" name="full_name" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Age</label>
+                    <input type="number" class="form-control" name="age" min="12" max="18" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Gender</label>
+                    <select class="form-select" name="gender" required>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">District</label>
+                    <select class="form-select" name="district" required>
+                        <option value="WT">West Tripura</option>
+                        <option value="ST">South Tripura</option>
+                        <option value="DL">Dhalai</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Village/Town</label>
+                    <input type="text" class="form-control" name="village_town">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Guardian Phone</label>
+                    <input type="tel" class="form-control" name="guardian_phone">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">School Class</label>
+                    <input type="text" class="form-control" name="school_class">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Enrollment Date</label>
+                    <input type="date" class="form-control" name="enrollment_date">
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" name="consent_parent" id="consent_parent">
+                        <label class="form-check-label" for="consent_parent">Parent Consent</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" name="assent_participant" id="assent_participant">
+                        <label class="form-check-label" for="assent_participant">Participant Assent</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-control" name="notes" rows="2"></textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Enroll Participant</button>
+                    <a href="{{ url_for('participants.list_participants') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% else %}
+<!-- Detail View -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">{{ p.tracking_id }}</h4>
+        <span class="text-muted">{{ p.full_name }}</span>
+        <span class="badge bg-{{ 'primary' if p.enrollment_status == 'enrolled' else 'success' if p.enrollment_status == 'completed' else 'warning' }} ms-2">
+            {{ p.enrollment_status }}
+        </span>
+    </div>
+    <a href="{{ url_for('participants.list_participants') }}" class="btn btn-outline-secondary btn-sm">Back to List</a>
+</div>
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#demographics">Demographics</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#health">Health Screening</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#lifestyle">Lifestyle</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#anthropometrics">Anthropometrics</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#samplesTab">Samples</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#hormones">Hormones</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#sequencing">Sequencing</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#audit">Audit Trail</a></li>
+</ul>
+
+<div class="tab-content">
+    <!-- Demographics Tab -->
+    <div class="tab-pane fade show active" id="demographics">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr><th width="40%">Tracking ID</th><td>{{ p.tracking_id }}</td></tr>
+                            <tr><th>Full Name</th><td>{{ p.full_name }}</td></tr>
+                            <tr><th>Age</th><td>{{ p.age or '-' }}</td></tr>
+                            <tr><th>Date of Birth</th><td>{{ p.dob or '-' }}</td></tr>
+                            <tr><th>Gender</th><td>{{ 'Male' if p.gender == 'M' else 'Female' }}</td></tr>
+                            <tr><th>District</th><td>{{ p.display_district }}</td></tr>
+                            <tr><th>Village/Town</th><td>{{ p.village_town or '-' }}</td></tr>
+                            <tr><th>Guardian Phone</th><td>{{ p.guardian_phone or '-' }}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr><th width="40%">School Class</th><td>{{ p.school_class or '-' }}</td></tr>
+                            <tr><th>Religion</th><td>{{ p.religion or '-' }}</td></tr>
+                            <tr><th>Community/Tribe</th><td>{{ p.community_tribe or '-' }}</td></tr>
+                            <tr><th>Mother Tongue</th><td>{{ p.mother_tongue or '-' }}</td></tr>
+                            <tr><th>Lifestyle (Assigned)</th><td>{{ p.lifestyle_group_assigned or '-' }}</td></tr>
+                            <tr><th>Lifestyle (Final)</th><td>{{ p.lifestyle_group_final or '-' }}</td></tr>
+                            <tr><th>Field Worker</th><td>{{ p.field_worker_name or '-' }}</td></tr>
+                            <tr><th>GPS</th><td>{{ p.gps_latitude }}, {{ p.gps_longitude }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <span class="badge {{ 'bg-success' if p.consent_parent else 'bg-danger' }}">Parent Consent: {{ 'Yes' if p.consent_parent else 'No' }}</span>
+                        <span class="badge {{ 'bg-success' if p.assent_participant else 'bg-danger' }}">Participant Assent: {{ 'Yes' if p.assent_participant else 'No' }}</span>
+                        <span class="badge {{ 'bg-success' if p.photo_consent else 'bg-secondary' }}">Photo Consent: {{ 'Yes' if p.photo_consent else 'No' }}</span>
+                    </div>
+                </div>
+                {% if p.notes %}
+                <div class="mt-3"><strong>Notes:</strong> {{ p.notes }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Health Screening Tab -->
+    <div class="tab-pane fade" id="health">
+        <div class="card">
+            <div class="card-body">
+                {% if p.health_screening %}
+                {% set hs = p.health_screening %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Eligibility Criteria</h6>
+                        <table class="table table-sm">
+                            <tr><th>Chronic Illness</th><td>{{ 'Yes' if hs.chronic_illness else 'No' }}</td></tr>
+                            <tr><th>Antibiotics (3mo)</th><td>{{ 'Yes' if hs.antibiotics_3mo else 'No' }}</td></tr>
+                            <tr><th>Hospital (3mo)</th><td>{{ 'Yes' if hs.hospital_3mo else 'No' }}</td></tr>
+                            <tr><th>Genetic Disorder</th><td>{{ 'Yes' if hs.genetic_disorder else 'No' }}</td></tr>
+                            <tr><th>Pregnant</th><td>{{ 'Yes' if hs.pregnant else 'No' }}</td></tr>
+                            <tr><th>Regular Medication</th><td>{{ 'Yes' if hs.regular_medication else 'No' }}</td></tr>
+                            {% if hs.medication_details %}<tr><th>Medication Details</th><td>{{ hs.medication_details }}</td></tr>{% endif %}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Family History</h6>
+                        <table class="table table-sm">
+                            <tr><th>Diabetes</th><td>{{ hs.fam_diabetes or '-' }}</td></tr>
+                            <tr><th>Obesity</th><td>{{ hs.fam_obesity or '-' }}</td></tr>
+                            <tr><th>Hypertension</th><td>{{ hs.fam_hypertension or '-' }}</td></tr>
+                            <tr><th>Heart Disease</th><td>{{ hs.fam_heart or '-' }}</td></tr>
+                            <tr><th>Thyroid</th><td>{{ hs.fam_thyroid or '-' }}</td></tr>
+                            <tr><th>Cholesterol</th><td>{{ hs.fam_cholesterol or '-' }}</td></tr>
+                            <tr><th>PCOS</th><td>{{ hs.fam_pcos or '-' }}</td></tr>
+                        </table>
+                        <h6>Birth/Early Life</h6>
+                        <table class="table table-sm">
+                            <tr><th>Delivery Mode</th><td>{{ hs.delivery_mode or '-' }}</td></tr>
+                            <tr><th>Preterm</th><td>{{ 'Yes' if hs.preterm else 'No' if hs.preterm is not none else '-' }}</td></tr>
+                            <tr><th>Breastfed</th><td>{{ 'Yes' if hs.breastfed else 'No' if hs.breastfed is not none else '-' }}</td></tr>
+                            <tr><th>BF Duration</th><td>{{ hs.bf_duration or '-' }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">No health screening data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Lifestyle Tab -->
+    <div class="tab-pane fade" id="lifestyle">
+        <div class="card">
+            <div class="card-body">
+                {% if p.lifestyle_data %}
+                {% set ld = p.lifestyle_data %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>Physical Activity</h6>
+                        <table class="table table-sm">
+                            <tr><th>Vigorous</th><td>{{ ld.vigorous_activity or '-' }}</td></tr>
+                            <tr><th>Moderate</th><td>{{ ld.moderate_activity or '-' }}</td></tr>
+                            <tr><th>Sedentary (weekday)</th><td>{{ ld.sedentary_weekday or '-' }} hrs</td></tr>
+                            <tr><th>Sedentary (weekend)</th><td>{{ ld.sedentary_weekend or '-' }} hrs</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Sleep & Screen</h6>
+                        <table class="table table-sm">
+                            <tr><th>Sleep Quality</th><td>{{ ld.sleep_quality or '-' }}</td></tr>
+                            <tr><th>Screen Time</th><td>{{ ld.daily_screen or '-' }} hrs</td></tr>
+                            <tr><th>Meals/Day</th><td>{{ ld.meals_per_day or '-' }}</td></tr>
+                        </table>
+                        <h6>PSS-4 Score</h6>
+                        <p class="fs-4 fw-bold text-{{ 'success' if ld.pss4_score is not none and ld.pss4_score <= 5 else 'warning' if ld.pss4_score is not none and ld.pss4_score <= 10 else 'danger' if ld.pss4_score is not none else 'muted' }}">
+                            {{ ld.pss4_score if ld.pss4_score is not none else '-' }} / 16
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Substance Exposure</h6>
+                        <table class="table table-sm">
+                            <tr><th>Passive Smoke</th><td>{{ 'Yes' if ld.passive_smoke else 'No' }}</td></tr>
+                            <tr><th>Personal Substance</th><td>{{ 'Yes' if ld.personal_substance else 'No' }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">No lifestyle data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Anthropometrics Tab -->
+    <div class="tab-pane fade" id="anthropometrics">
+        <div class="card">
+            <div class="card-body">
+                {% if p.anthropometrics %}
+                {% set a = p.anthropometrics %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr><th>Height</th><td>{{ a.height_cm }} cm</td></tr>
+                            <tr><th>Weight</th><td>{{ a.weight_kg }} kg</td></tr>
+                            <tr><th>BMI</th><td>{{ a.bmi }}</td></tr>
+                            <tr><th>Waist</th><td>{{ a.waist_cm or '-' }} cm</td></tr>
+                            <tr><th>Hip</th><td>{{ a.hip_cm or '-' }} cm</td></tr>
+                            <tr><th>Waist-Hip Ratio</th><td>{{ a.waist_hip_ratio or '-' }}</td></tr>
+                            <tr><th>MUAC</th><td>{{ a.muac_cm or '-' }} cm</td></tr>
+                            <tr><th>Body Fat %</th><td>{{ a.body_fat_pct or '-' }}%</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr><th>BP</th><td>{{ a.bp_systolic or '-' }}/{{ a.bp_diastolic or '-' }} mmHg</td></tr>
+                            <tr><th>Heart Rate</th><td>{{ a.heart_rate or '-' }} bpm</td></tr>
+                            <tr><th>Tanner Stage</th><td>{{ a.tanner_stage or '-' }}</td></tr>
+                            <tr><th>Measured By</th><td>{{ a.measured_by or '-' }}</td></tr>
+                            <tr><th>Measurement Date</th><td>{{ a.measurement_date or '-' }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">No anthropometric data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Samples Tab -->
+    <div class="tab-pane fade" id="samplesTab">
+        <div class="card">
+            <div class="card-body">
+                {% if samples %}
+                <table class="table table-sm">
+                    <thead><tr><th>Sample ID</th><th>Type</th><th>Status</th><th>Storage</th><th>Location</th><th>Dispatched</th></tr></thead>
+                    <tbody>
+                    {% for s in samples %}
+                    <tr>
+                        <td><a href="{{ url_for('samples.detail', sample_id=s.sample_id) }}">{{ s.sample_id }}</a></td>
+                        <td>{{ s.sample_type }}</td>
+                        <td><span class="badge bg-{{ 'success' if s.collection_status == 'collected' else 'danger' }}">{{ s.collection_status }}</span></td>
+                        <td><span class="badge bg-{{ 'info' if s.storage_status == 'stored' else 'warning' if s.storage_status == 'dispatched' else 'secondary' }}">{{ s.storage_status }}</span></td>
+                        <td>{{ s.freezer_location }}</td>
+                        <td>{{ s.dispatched_to or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No samples registered.</p>
+                {% endif %}
+                <a href="{{ url_for('samples.register') }}?tracking_id={{ p.tracking_id }}" class="btn btn-sm btn-outline-primary">Register Samples</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hormones Tab -->
+    <div class="tab-pane fade" id="hormones">
+        <div class="card">
+            <div class="card-body">
+                {% if hormone_results %}
+                {% for h in hormone_results %}
+                <h6>Report: {{ h.lab_report_id or h.import_batch_id or '-' }} ({{ h.report_date or '-' }})</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr><th>Fasting Glucose</th><td>{{ h.fasting_glucose_mg_dl or '-' }} mg/dL</td></tr>
+                            <tr><th>Insulin</th><td>{{ h.insulin_uiu_ml or '-' }} uIU/mL</td></tr>
+                            <tr><th>HOMA-IR</th><td class="{{ 'text-danger fw-bold' if h.homa_ir and h.homa_ir >= 2.5 else '' }}">{{ h.homa_ir or '-' }}</td></tr>
+                            <tr><th>Cortisol (serum)</th><td>{{ h.cortisol_serum_ug_dl or '-' }} ug/dL</td></tr>
+                            <tr><th>IGF-1</th><td>{{ h.igf1_ng_ml or '-' }} ng/mL</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr><th>Total Cholesterol</th><td>{{ h.total_cholesterol_mg_dl or '-' }} mg/dL</td></tr>
+                            <tr><th>HDL</th><td>{{ h.hdl_mg_dl or '-' }} mg/dL</td></tr>
+                            <tr><th>LDL</th><td>{{ h.ldl_mg_dl or '-' }} mg/dL</td></tr>
+                            <tr><th>Triglycerides</th><td>{{ h.triglycerides_mg_dl or '-' }} mg/dL</td></tr>
+                            <tr><th>TG/HDL Ratio</th><td class="{{ 'text-danger fw-bold' if h.tg_hdl_ratio and h.tg_hdl_ratio >= 3.0 else '' }}">{{ h.tg_hdl_ratio or '-' }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                {% if not loop.last %}<hr>{% endif %}
+                {% endfor %}
+                {% else %}
+                <p class="text-muted">No hormone results available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sequencing Tab -->
+    <div class="tab-pane fade" id="sequencing">
+        <div class="card">
+            <div class="card-body">
+                {% if seq_results %}
+                {% for s in seq_results %}
+                <table class="table table-sm">
+                    <tr><th>Vendor</th><td>{{ s.vendor }}</td></tr>
+                    <tr><th>Batch</th><td>{{ s.sequencing_batch_id or '-' }}</td></tr>
+                    <tr><th>Total Reads</th><td>{{ '{:,}'.format(s.total_reads) if s.total_reads else '-' }}</td></tr>
+                    <tr><th>Reads Post-QC</th><td>{{ '{:,}'.format(s.reads_post_qc) if s.reads_post_qc else '-' }}</td></tr>
+                    <tr><th>Host Removal</th><td>{{ s.host_removal_pct or '-' }}%</td></tr>
+                    <tr><th>MAGs (HQ/MQ/Total)</th><td>{{ s.hq_mag_count or 0 }} / {{ s.mq_mag_count or 0 }} / {{ s.mag_count or 0 }}</td></tr>
+                    <tr><th>QC Status</th><td><span class="badge bg-{{ 'success' if s.qc_status == 'passed' else 'warning' if s.qc_status == 'pending' else 'danger' }}">{{ s.qc_status }}</span></td></tr>
+                </table>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted">No sequencing results available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Trail Tab -->
+    <div class="tab-pane fade" id="audit">
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Time</th><th>Action</th><th>Field</th><th>Old Value</th><th>New Value</th><th>By</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for a in audit_entries %}
+                    <tr>
+                        <td>{{ a.changed_at.strftime('%Y-%m-%d %H:%M') if a.changed_at else '-' }}</td>
+                        <td><span class="badge bg-{{ 'success' if a.change_type == 'INSERT' else 'info' if a.change_type == 'UPDATE' else 'danger' }}">{{ a.change_type }}</span></td>
+                        <td>{{ a.field_name or '-' }}</td>
+                        <td><small>{{ a.old_value or '-' }}</small></td>
+                        <td><small>{{ a.new_value or '-' }}</small></td>
+                        <td>{{ a.changed_by or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted">No audit entries.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
