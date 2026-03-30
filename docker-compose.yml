@@ -30,7 +30,7 @@ services:
       - uploads:/data/uploads
       - ./app/static:/app/app/static
     ports:
-      - "127.0.0.1:${WEB_PORT:-8100}:8000"
+      - "${LAN_IP:-0.0.0.0}:${WEB_PORT:-8100}:8000"
 
 volumes:
   pgdata:
