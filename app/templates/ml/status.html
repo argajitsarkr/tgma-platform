@@ -1,94 +1,22 @@
 {% extends "base.html" %}
 {% block title %}ML Pipeline — TGMA Platform{% endblock %}
 {% block content %}
-<h4 class="mb-3">ML Pipeline Status</h4>
+<h1 class="page-title">ML Pipeline</h1>
+<p class="page-subtitle">Metabolic risk prediction using multiomics data.</p>
 
-<!-- Data Readiness -->
-<div class="card mb-4">
-    <div class="card-header">Data Readiness for Feature Matrix</div>
-    <div class="card-body">
-        <div class="row text-center">
-            <div class="col">
-                <h3 class="fw-bold">{{ total }}</h3>
-                <small class="text-muted">Enrolled</small>
-            </div>
-            <div class="col">
-                <h3 class="fw-bold text-{{ 'success' if with_anthro == total else 'warning' }}">{{ with_anthro }}</h3>
-                <small class="text-muted">Anthropometrics</small>
-            </div>
-            <div class="col">
-                <h3 class="fw-bold text-{{ 'success' if with_lifestyle == total else 'warning' }}">{{ with_lifestyle }}</h3>
-                <small class="text-muted">Lifestyle Data</small>
-            </div>
-            <div class="col">
-                <h3 class="fw-bold text-{{ 'info' if with_hormones > 0 else 'muted' }}">{{ with_hormones }}</h3>
-                <small class="text-muted">Hormone Results</small>
-            </div>
-            <div class="col">
-                <h3 class="fw-bold text-{{ 'info' if with_sequencing > 0 else 'muted' }}">{{ with_sequencing }}</h3>
-                <small class="text-muted">Sequencing</small>
-            </div>
-            <div class="col">
-                <h3 class="fw-bold text-{{ 'success' if with_risk > 0 else 'muted' }}">{{ with_risk }}</h3>
-                <small class="text-muted">Risk Scored</small>
-            </div>
+<div class="tgma-card">
+    <div class="coming-soon">
+        <i class="bi bi-cpu"></i>
+        <h4>Coming Soon</h4>
+        <p>Metabolic risk prediction models will be available once sufficient sequencing data has been collected and processed. The pipeline will include feature extraction from metagenomics, clinical, and lifestyle data for integrated ML analysis.</p>
+        <div class="mt-4" style="font-size:0.8rem;color:var(--tgma-muted);">
+            <table class="table table-sm mx-auto" style="max-width:500px;text-align:left;">
+                <tr><th style="width:40%;">Target</th><td>n=160 participants with complete multiomics data</td></tr>
+                <tr><th>Features</th><td>Clinical + Lifestyle + Microbiome profiles</td></tr>
+                <tr><th>Outcome</th><td>Metabolic risk score (HOMA-IR, TG/HDL, waist circumference, HDL)</td></tr>
+                <tr><th>Sequencing</th><td>Shotgun metagenomics, 8-9GB/sample, SqueezeMeta + MetaPhlAn4</td></tr>
+            </table>
         </div>
-
-        <!-- Progress bars -->
-        <div class="mt-3">
-            {% set pairs = [('Anthropometrics', with_anthro), ('Lifestyle', with_lifestyle), ('Hormones', with_hormones), ('Sequencing', with_sequencing)] %}
-            {% for label, count in pairs %}
-            <div class="mb-2">
-                <div class="d-flex justify-content-between">
-                    <small>{{ label }}</small>
-                    <small>{{ count }}/{{ total }}</small>
-                </div>
-                <div class="progress" style="height: 6px;">
-                    <div class="progress-bar bg-{{ 'success' if total > 0 and count / total >= 0.9 else 'warning' if total > 0 and count / total >= 0.5 else 'danger' }}"
-                         style="width: {{ (count / total * 100) if total > 0 else 0 }}%"></div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<!-- Export -->
-<div class="card mb-4">
-    <div class="card-header">Feature Matrix Export</div>
-    <div class="card-body">
-        <p>Export the integrated feature matrix as CSV for the ML pipeline. Includes demographics, anthropometrics, lifestyle, environment, hormone results, and sequencing metrics — one row per participant.</p>
-        <a href="{{ url_for('ml.export') }}" class="btn btn-success">Download Feature Matrix CSV</a>
-        <small class="text-muted ms-2">{{ total }} participants will be included</small>
-    </div>
-</div>
-
-<!-- Model Results -->
-<div class="card mb-4">
-    <div class="card-header">Model Results</div>
-    <div class="card-body">
-        {% if latest_model %}
-        <table class="table table-sm">
-            <tr><th>Model Version</th><td>{{ latest_model.model_version or '-' }}</td></tr>
-            <tr><th>Prediction Date</th><td>{{ latest_model.prediction_date or '-' }}</td></tr>
-            <tr><th>Participants Scored</th><td>{{ with_risk }}</td></tr>
-        </table>
-        {% else %}
-        <p class="text-muted mb-0">No model results available yet. Run the ML pipeline and import results to see predictions here.</p>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Pipeline Info -->
-<div class="card">
-    <div class="card-header">Pipeline Information</div>
-    <div class="card-body">
-        <table class="table table-sm mb-0">
-            <tr><th>Target</th><td>n=160 participants with complete multiomics data</td></tr>
-            <tr><th>Features</th><td>Clinical/lifestyle (all participants) + Microbiome (n=160 sequenced)</td></tr>
-            <tr><th>Outcome</th><td>Metabolic risk prediction (HOMA-IR >= 2.5, TG/HDL >= 3.0, waist >90th percentile, HDL <10th percentile)</td></tr>
-            <tr><th>Sequencing</th><td>Shotgun metagenomics, 60M PE reads/sample, SqueezeMeta 1.7.2 + MetaPhlAn4</td></tr>
-        </table>
     </div>
 </div>
 {% endblock %}

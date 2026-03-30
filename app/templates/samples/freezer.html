@@ -2,70 +2,60 @@
 {% block title %}Freezer Inventory — TGMA Platform{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Freezer Inventory</h4>
-    <a href="{{ url_for('samples.tracker') }}" class="btn btn-outline-secondary btn-sm">Back to Tracker</a>
+    <div>
+        <h1 class="page-title mb-0">Freezer Inventory</h1>
+        <p class="page-subtitle mb-0">4 shelves, boxes organized by District + Month.</p>
+    </div>
+    <a href="{{ url_for('samples.tracker') }}" class="btn btn-tgma-outline btn-sm"><i class="bi bi-arrow-left"></i> Back to Tracker</a>
 </div>
 
-{% if freezers %}
-{% for fid, samples in freezers.items() %}
-<div class="card mb-4">
-    <div class="card-header">
-        <strong>Freezer {{ fid }}</strong>
-        <span class="badge bg-info ms-2">{{ samples | length }} samples</span>
+{% if shelves %}
+{% for shelf_num, boxes in shelves.items() %}
+<div class="tgma-card mb-3">
+    <div class="tgma-card-header">
+        <span><i class="bi bi-archive"></i> Shelf {{ shelf_num }}</span>
+        <span class="badge-tgma badge-info">{{ boxes.values() | sum(attribute='__len__') if boxes.values() is iterable else 0 }} samples</span>
     </div>
-    <div class="card-body p-0">
-        <table class="table table-sm table-bordered mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Sample ID</th>
-                    <th>Participant</th>
-                    <th>Type</th>
-                    <th>Rack</th>
-                    <th>Shelf</th>
-                    <th>Box</th>
-                    <th>Position</th>
-                    <th>Temp</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in samples %}
-                <tr>
-                    <td><a href="{{ url_for('samples.detail', sample_id=s.sample_id) }}">{{ s.sample_id }}</a></td>
-                    <td><a href="{{ url_for('participants.detail', tracking_id=s.tracking_id) }}">{{ s.tracking_id }}</a></td>
-                    <td>
-                        <span class="badge bg-{{ 'success' if s.sample_type == 'stool' else 'danger' if s.sample_type == 'blood' else 'primary' if 'saliva' in s.sample_type else 'info' }}">
-                            {{ s.sample_type }}
-                        </span>
-                    </td>
-                    <td>{{ s.rack or '-' }}</td>
-                    <td>{{ s.shelf or '-' }}</td>
-                    <td>{{ s.box_number or '-' }}</td>
-                    <td>{{ s.box_row }}{{ s.box_column }}</td>
-                    <td>{{ s.storage_temp or '-' }}°C</td>
-                    <td><span class="badge bg-info">{{ s.storage_status }}</span></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    <div class="row g-2">
+        {% for box_name, samples in boxes.items() %}
+        <div class="col-md-4 col-lg-3">
+            <div style="border:1px solid var(--tgma-border);border-radius:var(--tgma-radius-sm);padding:0.75rem;background:var(--tgma-bg);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong style="font-size:0.85rem;"><i class="bi bi-box"></i> {{ box_name }}</strong>
+                    <span class="badge-tgma badge-success">{{ samples | length }}</span>
+                </div>
+                <div style="font-size:0.8rem;color:var(--tgma-muted);">
+                    {% for s in samples[:5] %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('samples.detail', sample_id=s.sample_id) }}" style="font-size:0.75rem;">{{ s.sample_id }}</a>
+                        <span class="badge-tgma {{ 'badge-success' if s.sample_type == 'stool' else 'badge-info' }}" style="font-size:0.65rem;">{{ s.sample_type }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if samples | length > 5 %}
+                    <div class="text-muted text-center mt-1" style="font-size:0.75rem;">+ {{ samples | length - 5 }} more</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endfor %}
 {% else %}
-<div class="card">
-    <div class="card-body text-center text-muted">
-        No samples currently stored in freezers.
+<div class="tgma-card">
+    <div class="coming-soon" style="padding:2rem;">
+        <i class="bi bi-archive"></i>
+        <h4>No Samples Stored</h4>
+        <p>No samples are currently stored in the freezer.</p>
     </div>
 </div>
 {% endif %}
 
-<div class="card mt-3">
-    <div class="card-header">Legend</div>
-    <div class="card-body">
-        <span class="badge bg-success me-2">Stool</span>
-        <span class="badge bg-danger me-2">Blood</span>
-        <span class="badge bg-primary me-2">Saliva</span>
-        <span class="badge bg-info me-2">DNA / Serum</span>
+<div class="tgma-card mt-3" style="background:var(--tgma-bg);">
+    <div style="font-size:0.85rem;color:var(--tgma-muted);">
+        <i class="bi bi-info-circle"></i>
+        <strong>Box Naming:</strong> Boxes are named by District + Month (e.g., <code>WT-MAR26</code> = West Tripura, March 2026). Each shelf holds boxes for different collection periods.
     </div>
 </div>
 {% endblock %}

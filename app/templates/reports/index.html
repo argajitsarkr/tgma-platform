@@ -1,35 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Reports — TGMA Platform{% endblock %}
 {% block content %}
-<h4 class="mb-3">Reports</h4>
+<h1 class="page-title">Reports</h1>
+<p class="page-subtitle">Study progress reports and data exports.</p>
 
-<div class="row">
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">ICMR Progress Report</h5>
-                <p class="card-text text-muted">Enrollment vs targets, sample collection progress, budget utilization. For 10-month progress submission.</p>
-                <a href="{{ url_for('reports.icmr_progress') }}" class="btn btn-primary">View Report</a>
-            </div>
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="tgma-card text-center">
+            <i class="bi bi-file-earmark-text" style="font-size:2rem;color:var(--tgma-accent);"></i>
+            <h5 class="fw-bold mt-2">ICMR Progress Report</h5>
+            <p style="font-size:0.85rem;color:var(--tgma-muted);">Enrollment vs targets, sample collection progress. For grant reporting.</p>
+            <a href="{{ url_for('reports.icmr_progress') }}" class="btn btn-tgma">View Report</a>
         </div>
     </div>
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">Enrollment Data (CSV)</h5>
-                <p class="card-text text-muted">Export all participant enrollment data as CSV for external analysis.</p>
-                <a href="{{ url_for('reports.enrollment_csv') }}" class="btn btn-outline-success">Download CSV</a>
-            </div>
+    <div class="col-md-4">
+        <div class="tgma-card text-center">
+            <i class="bi bi-people" style="font-size:2rem;color:var(--tgma-green-500);"></i>
+            <h5 class="fw-bold mt-2">Enrollment Data</h5>
+            <p style="font-size:0.85rem;color:var(--tgma-muted);">Export all participant enrollment data as CSV.</p>
+            <a href="{{ url_for('reports.enrollment_csv') }}" class="btn btn-tgma-outline">Download CSV</a>
         </div>
     </div>
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">Sample Inventory (CSV)</h5>
-                <p class="card-text text-muted">Complete sample inventory with storage locations and dispatch status.</p>
-                <a href="{{ url_for('reports.sample_inventory_csv') }}" class="btn btn-outline-success">Download CSV</a>
-            </div>
+    <div class="col-md-4">
+        <div class="tgma-card text-center">
+            <i class="bi bi-droplet" style="font-size:2rem;color:var(--tgma-green-500);"></i>
+            <h5 class="fw-bold mt-2">Sample Inventory</h5>
+            <p style="font-size:0.85rem;color:var(--tgma-muted);">Complete sample inventory with storage and dispatch status.</p>
+            <a href="{{ url_for('reports.sample_inventory_csv') }}" class="btn btn-tgma-outline">Download CSV</a>
         </div>
+    </div>
+</div>
+
+<div class="tgma-card" style="background:var(--tgma-bg);">
+    <div class="coming-soon" style="padding:2rem;">
+        <i class="bi bi-bar-chart-line"></i>
+        <h4>More Reports Coming Soon</h4>
+        <p>Comprehensive analytics, sequencing batch tracking, and automated ICMR submission reports will be added as the study progresses.</p>
     </div>
 </div>
 {% endblock %}

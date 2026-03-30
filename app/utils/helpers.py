@@ -14,6 +14,7 @@ SAMPLE_SUFFIXES = {
     'saliva_2': 'SLV2',
     'saliva_3': 'SLV3',
     'saliva_4': 'SLV4',
+    'saliva_cortisol': 'COR',
     'dna_extract': 'DNA',
     'serum': 'SRM',
 }

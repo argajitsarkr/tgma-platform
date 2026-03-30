@@ -2,78 +2,77 @@
 {% block title %}Participants — TGMA Platform{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Participant Registry</h4>
+    <div>
+        <h1 class="page-title mb-0">Participants</h1>
+        <p class="page-subtitle mb-0">Registry of all enrolled participants.</p>
+    </div>
     {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
-    <a href="{{ url_for('participants.create') }}" class="btn btn-primary btn-sm">+ New Participant</a>
+    <a href="{{ url_for('participants.create') }}" class="btn btn-tgma"><i class="bi bi-plus-circle"></i> New Participant</a>
     {% endif %}
 </div>
 
 <!-- Filters -->
-<div class="card mb-3">
-    <div class="card-body py-2">
-        <div class="row g-2 align-items-end">
-            <div class="col-auto">
-                <label class="form-label small mb-0">District</label>
-                <select id="filterDistrict" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="WT">West Tripura</option>
-                    <option value="ST">South Tripura</option>
-                    <option value="DL">Dhalai</option>
-                </select>
-            </div>
-            <div class="col-auto">
-                <label class="form-label small mb-0">Gender</label>
-                <select id="filterGender" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="M">Male</option>
-                    <option value="F">Female</option>
-                </select>
-            </div>
-            <div class="col-auto">
-                <label class="form-label small mb-0">Status</label>
-                <select id="filterStatus" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="enrolled">Enrolled</option>
-                    <option value="completed">Completed</option>
-                    <option value="withdrawn">Withdrawn</option>
-                    <option value="excluded">Excluded</option>
-                </select>
-            </div>
-            <div class="col-auto">
-                <label class="form-label small mb-0">Lifestyle</label>
-                <select id="filterLifestyle" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="AT">Active/Traditional</option>
-                    <option value="AP">Active/Processed</option>
-                    <option value="SDT">Sedentary/Traditional</option>
-                    <option value="SP">Sedentary/Processed</option>
-                </select>
-            </div>
-            <div class="col-auto">
-                <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">Reset</button>
-            </div>
+<div class="tgma-card mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:0.8rem;font-weight:600;">District</label>
+            <select id="filterDistrict" class="form-select form-select-sm">
+                <option value="">All</option>
+                <option value="WT">West Tripura</option>
+                <option value="ST">South Tripura</option>
+                <option value="DL">Dhalai</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:0.8rem;font-weight:600;">Gender</label>
+            <select id="filterGender" class="form-select form-select-sm">
+                <option value="">All</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:0.8rem;font-weight:600;">Status</label>
+            <select id="filterStatus" class="form-select form-select-sm">
+                <option value="">All</option>
+                <option value="enrolled">Enrolled</option>
+                <option value="completed">Completed</option>
+                <option value="withdrawn">Withdrawn</option>
+                <option value="excluded">Excluded</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label" style="font-size:0.8rem;font-weight:600;">Lifestyle</label>
+            <select id="filterLifestyle" class="form-select form-select-sm">
+                <option value="">All</option>
+                <option value="AT">Active/Traditional</option>
+                <option value="AP">Active/Processed</option>
+                <option value="SDT">Sedentary/Traditional</option>
+                <option value="SP">Sedentary/Processed</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-tgma-outline btn-sm w-100" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body p-0">
-        <table id="participantsTable" class="table table-sm table-hover mb-0" style="width:100%">
-            <thead class="table-light">
-                <tr>
-                    <th>Tracking ID</th>
-                    <th>Name</th>
-                    <th>Age</th>
-                    <th>Gender</th>
-                    <th>District</th>
-                    <th>Lifestyle</th>
-                    <th>Status</th>
-                    <th>Samples</th>
-                    <th>Enrolled</th>
-                </tr>
-            </thead>
-        </table>
-    </div>
+<div class="tgma-card">
+    <table id="participantsTable" class="table table-hover mb-0" style="width:100%">
+        <thead>
+            <tr>
+                <th>Tracking ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>District</th>
+                <th>Lifestyle</th>
+                <th>Status</th>
+                <th>Samples</th>
+                <th>Enrolled</th>
+            </tr>
+        </thead>
+    </table>
 </div>
 {% endblock %}
 
@@ -93,7 +92,7 @@ var table = $('#participantsTable').DataTable({
     },
     columns: [
         { data: 'tracking_id', render: function(data) {
-            return '<a href="/participants/' + data + '">' + data + '</a>';
+            return '<a href="/participants/' + data + '"><code>' + data + '</code></a>';
         }},
         { data: 'full_name' },
         { data: 'age' },
@@ -101,15 +100,14 @@ var table = $('#participantsTable').DataTable({
         { data: 'district' },
         { data: 'lifestyle_group' },
         { data: 'enrollment_status', render: function(data) {
-            var cls = {'enrolled': 'primary', 'completed': 'success', 'withdrawn': 'warning', 'excluded': 'danger'};
-            return '<span class="badge bg-' + (cls[data] || 'secondary') + '">' + data + '</span>';
+            var cls = {'enrolled': 'badge-success', 'completed': 'badge-info', 'withdrawn': 'badge-warning', 'excluded': 'badge-danger'};
+            return '<span class="badge-tgma ' + (cls[data] || 'badge-info') + '">' + data + '</span>';
         }},
         { data: 'samples' },
         { data: 'enrollment_date' }
     ],
     pageLength: 25,
     order: [[8, 'desc']],
-    dom: 'Bfrtip',
     language: { search: 'Search:' }
 });
 

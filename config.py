@@ -13,16 +13,13 @@ class BaseConfig:
 
     # TGMA study parameters
     TARGET_ENROLLMENT = 440
+    TARGET_SAMPLES_YEAR1 = 160
     TARGET_SEQUENCING = 160
     DISTRICT_TARGETS = {'WT': 200, 'ST': 100, 'DL': 100}
     LIFESTYLE_GROUPS = ['AT', 'AP', 'SDT', 'SP']
     LIFESTYLE_TARGET_EACH = 100
     SEQUENCING_BATCH_SIZE = 32
-
-    # Budget in Lakhs INR
-    BUDGET_SEQUENCING = float(os.environ.get('BUDGET_SEQUENCING', 30))
-    BUDGET_HORMONES = float(os.environ.get('BUDGET_HORMONES', 11))
-    BUDGET_SHIPMENT = float(os.environ.get('BUDGET_SHIPMENT', 1))
+    TOTAL_BATCHES_YEAR1 = 5
 
     # GPS bounds for Tripura
     GPS_LAT_MIN = 22.9

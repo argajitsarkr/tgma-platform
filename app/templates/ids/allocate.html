@@ -1,122 +1,100 @@
 {% extends "base.html" %}
 {% block title %}ID Allocation — TGMA Platform{% endblock %}
 {% block content %}
-<h4 class="mb-3">Participant ID Allocation</h4>
+<h1 class="page-title">ID Allocation</h1>
+<p class="page-subtitle">Generate tracking IDs for new participants. Print labels in the field using the portable printer.</p>
 
-<div class="row">
-    <div class="col-md-5">
-        <div class="card mb-3">
-            <div class="card-header">Allocate New IDs</div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('ids.allocate') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="form-label">District</label>
-                            <select class="form-select" name="district" required>
-                                <option value="WT">West Tripura</option>
-                                <option value="ST">South Tripura</option>
-                                <option value="DL">Dhalai</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Gender</label>
-                            <select class="form-select" name="gender" required>
-                                <option value="M">Male</option>
-                                <option value="F">Female</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Count</label>
-                            <input type="number" class="form-control" name="count" value="2" min="1" max="50" required>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Field Worker</label>
-                            <input type="text" class="form-control" name="field_worker" placeholder="Name of field worker">
-                        </div>
-                        <div class="col-12 mt-2">
-                            <button type="submit" class="btn btn-primary">Allocate IDs</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+<div class="row g-4">
+    <!-- Generate ID -->
+    <div class="col-lg-5">
+        <div class="tgma-card">
+            <div class="tgma-card-header">Generate Next ID</div>
+            <form method="POST" action="{{ url_for('ids.allocate') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">District</label>
+                    <select class="form-select" name="district" required>
+                        <option value="WT">West Tripura (WT)</option>
+                        <option value="ST">South Tripura (ST)</option>
+                        <option value="DL">Dhalai (DL)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Gender</label>
+                    <select class="form-select" name="gender" required>
+                        <option value="M">Male (M)</option>
+                        <option value="F">Female (F)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Field Worker</label>
+                    <input type="text" class="form-control" name="field_worker" placeholder="Name of field worker">
+                </div>
+                <button type="submit" class="btn btn-tgma w-100"><i class="bi bi-plus-circle"></i> Generate ID</button>
+            </form>
         </div>
 
-        <!-- Sequence Summary -->
-        <div class="card">
-            <div class="card-header">Current Sequence Status</div>
-            <div class="card-body p-0">
-                <table class="table table-sm mb-0">
-                    <thead class="table-light">
-                        <tr><th>District</th><th>Gender</th><th>Last Seq</th><th>Next</th></tr>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        {% if category == 'success' %}
+        <div class="tgma-card mt-3 text-center" style="background:var(--tgma-accent-light);border-color:var(--tgma-accent);">
+            <div style="font-size:0.85rem;color:var(--tgma-muted);margin-bottom:0.5rem;">Generated ID</div>
+            <div style="font-size:2rem;font-weight:700;color:var(--tgma-accent);letter-spacing:0.05em;">
+                {{ message.replace('Allocated ID: ', '') }}
+            </div>
+            <div style="font-size:0.8rem;color:var(--tgma-muted);margin-top:0.5rem;">Print this label for the participant's forms and sample vials</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Sequence Status -->
+    <div class="col-lg-7">
+        <div class="tgma-card">
+            <div class="tgma-card-header">Current Sequence Status</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>District</th>
+                            <th>Gender</th>
+                            <th>Last Assigned</th>
+                            <th>Next Available</th>
+                            <th>Next ID</th>
+                        </tr>
                     </thead>
                     <tbody>
                         {% for key, info in summaries.items() %}
                         <tr>
-                            <td>{{ info.district }}</td>
-                            <td>{{ info.gender }}</td>
-                            <td>{{ '%04d' | format(info.last_sequence) }}</td>
-                            <td class="fw-bold">{{ '%04d' | format(info.next_sequence) }}</td>
+                            <td>
+                                {% if info.district == 'WT' %}West Tripura
+                                {% elif info.district == 'ST' %}South Tripura
+                                {% else %}Dhalai{% endif %}
+                            </td>
+                            <td>{{ 'Male' if info.gender == 'M' else 'Female' }}</td>
+                            <td>
+                                {% if info.last_sequence > 0 %}
+                                <code>{{ '%04d' | format(info.last_sequence) }}</code>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="fw-bold" style="color:var(--tgma-accent);">{{ '%04d' | format(info.next_sequence) }}</span></td>
+                            <td><code>TGMA-{{ info.district }}-{{ info.gender }}-{{ '%04d' | format(info.next_sequence) }}</code></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-7">
-        <div class="card">
-            <div class="card-header">Allocation History</div>
-            <div class="card-body p-0">
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tracking ID</th>
-                            <th>Allocated To</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in allocations %}
-                        <tr>
-                            <td><code>{{ a.tracking_id }}</code></td>
-                            <td>{{ a.allocated_to or '-' }}</td>
-                            <td>{{ a.allocated_date or '-' }}</td>
-                            <td>
-                                <span class="badge bg-{{ 'primary' if a.status == 'allocated' else 'success' if a.status == 'used' else 'warning' if a.status == 'returned' else 'danger' }}">
-                                    {{ a.status }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if a.status == 'allocated' %}
-                                <form method="POST" action="{{ url_for('ids.update_status', tracking_id=a.tracking_id) }}" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="status" value="used">
-                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Mark as used">Used</button>
-                                </form>
-                                <form method="POST" action="{{ url_for('ids.update_status', tracking_id=a.tracking_id) }}" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="status" value="returned">
-                                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Return">Return</button>
-                                </form>
-                                <form method="POST" action="{{ url_for('ids.update_status', tracking_id=a.tracking_id) }}" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="status" value="void">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Void">Void</button>
-                                </form>
-                                {% else %}
-                                <span class="text-muted small">{{ a.used_date or '' }}</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted">No IDs allocated yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="tgma-card mt-3" style="background:var(--tgma-bg);">
+            <div style="font-size:0.85rem;color:var(--tgma-muted);">
+                <i class="bi bi-info-circle"></i>
+                <strong>Field Workflow:</strong> Convince participant &rarr; Generate ID here &rarr; Print label on portable printer &rarr; Paste on consent form, blood vial, saliva vial, and stool kit &rarr; Store in 0&deg;C cooler during transport.
             </div>
         </div>
     </div>

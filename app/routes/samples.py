@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required
 from datetime import date
@@ -8,6 +9,8 @@ from app.utils.decorators import role_required
 from app.utils.helpers import generate_sample_id
 
 samples_bp = Blueprint('samples', __name__, url_prefix='/samples')
+
+ALLOWED_SAMPLE_TYPES = ['stool', 'saliva_cortisol']
 
 
 @samples_bp.route('/')
@@ -53,6 +56,12 @@ def register():
             return redirect(url_for('samples.register'))
 
         sample_types = request.form.getlist('sample_types')
+        # Only allow permitted sample types
+        sample_types = [st for st in sample_types if st in ALLOWED_SAMPLE_TYPES]
+        if not sample_types:
+            flash('No valid sample types selected.', 'warning')
+            return redirect(url_for('samples.register'))
+
         registered = []
         for st in sample_types:
             sample_id = generate_sample_id(tracking_id, st)
@@ -79,7 +88,9 @@ def register():
     participants = Participant.query.filter(
         Participant.enrollment_status.in_(['enrolled', 'completed'])
     ).order_by(Participant.tracking_id).all()
-    return render_template('samples/register.html', participants=participants)
+    return render_template('samples/register.html',
+                           participants=participants,
+                           allowed_sample_types=ALLOWED_SAMPLE_TYPES)
 
 
 @samples_bp.route('/freezer')
@@ -88,17 +99,20 @@ def freezer():
     samples = Sample.query.filter(
         Sample.storage_status == 'stored',
         Sample.freezer_id.isnot(None)
-    ).order_by(Sample.freezer_id, Sample.rack, Sample.shelf, Sample.box_number).all()
+    ).order_by(Sample.shelf, Sample.box_number, Sample.box_row, Sample.box_column).all()
 
-    # Group by freezer
-    freezers = {}
+    # Group by shelf (1-4) then by box_name (box_number, e.g. "WT-MAR26")
+    shelves = OrderedDict()
     for s in samples:
-        fid = s.freezer_id
-        if fid not in freezers:
-            freezers[fid] = []
-        freezers[fid].append(s)
+        shelf_key = s.shelf or 'Unassigned'
+        box_key = s.box_number or 'Unassigned'
+        if shelf_key not in shelves:
+            shelves[shelf_key] = OrderedDict()
+        if box_key not in shelves[shelf_key]:
+            shelves[shelf_key][box_key] = []
+        shelves[shelf_key][box_key].append(s)
 
-    return render_template('samples/freezer.html', freezers=freezers)
+    return render_template('samples/freezer.html', shelves=shelves)
 
 
 @samples_bp.route('/dispatch', methods=['GET', 'POST'])
@@ -135,12 +149,3 @@ def dispatch():
         sample_type='stool', storage_status='stored'
     ).order_by(Sample.tracking_id).all()
     return render_template('samples/dispatch.html', eligible=eligible)
-
-
-@samples_bp.route('/qc')
-@login_required
-def qc():
-    samples = Sample.query.filter(
-        Sample.dna_concentration_ng_ul.isnot(None)
-    ).order_by(Sample.tracking_id).all()
-    return render_template('samples/qc.html', samples=samples)

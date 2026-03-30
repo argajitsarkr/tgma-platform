@@ -1,33 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Login — TGMA Platform{% endblock %}
 {% block content_unauth %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-4">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <h3 class="text-center mb-1 fw-bold">TGMA Platform</h3>
-                <p class="text-center text-muted mb-4">Tripura Gut Microbiome in Adolescents</p>
-                <form method="POST" action="{{ url_for('auth.login') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username"
-                               required autofocus autocomplete="username">
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password"
-                               required autocomplete="current-password">
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Sign In</button>
-                </form>
-                <hr>
-                <p class="text-center text-muted small mb-0">
-                    ICMR Grant: IIRPSG-2025-01-03722<br>
-                    Tripura University &bull; Internal Use Only
-                </p>
-            </div>
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <i class="bi bi-heart-pulse" style="font-size:2.5rem;color:var(--tgma-accent);"></i>
+            <h3 class="fw-bold mt-2 mb-1">TGMA Platform</h3>
+            <p class="text-muted" style="font-size:0.85rem;">Tripura Gut Microbiome in Adolescents</p>
         </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} py-2" style="font-size:0.85rem;border-radius:8px;">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('auth.login') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label for="username" class="form-label" style="font-weight:600;font-size:0.85rem;">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required autofocus autocomplete="username" style="border-radius:8px;padding:0.6rem 0.85rem;">
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label" style="font-weight:600;font-size:0.85rem;">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password" style="border-radius:8px;padding:0.6rem 0.85rem;">
+            </div>
+            <button type="submit" class="btn btn-tgma w-100 py-2">Sign In</button>
+        </form>
+        <hr style="border-color:var(--tgma-border);">
+        <p class="text-center mb-0" style="font-size:0.75rem;color:var(--tgma-muted);">
+            ICMR Grant: IIRPSG-2025-01-03722<br>
+            Tripura University &bull; Internal Use Only
+        </p>
     </div>
 </div>
 {% endblock %}

@@ -1,71 +1,42 @@
 {% extends "base.html" %}
 {% block title %}Register Samples — TGMA Platform{% endblock %}
 {% block content %}
-<h4 class="mb-3">Register Samples</h4>
+<h1 class="page-title">Register Samples</h1>
+<p class="page-subtitle">Register fecal and saliva samples for a participant.</p>
 
-<div class="card">
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('samples.register') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Participant Tracking ID</label>
-                    <select name="tracking_id" class="form-select" required>
-                        <option value="">Select participant...</option>
-                        {% for p in participants %}
-                        <option value="{{ p.tracking_id }}" {{ 'selected' if request.args.get('tracking_id') == p.tracking_id }}>
-                            {{ p.tracking_id }} — {{ p.full_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Sample Types to Register</label>
-                    <div class="row">
-                        <div class="col-6">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="stool" id="st_stool" checked>
-                                <label class="form-check-label" for="st_stool">Stool (STL)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="blood" id="st_blood" checked>
-                                <label class="form-check-label" for="st_blood">Blood (BLD)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="saliva_1" id="st_slv1" checked>
-                                <label class="form-check-label" for="st_slv1">Saliva Awakening (SLV1)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="saliva_2" id="st_slv2" checked>
-                                <label class="form-check-label" for="st_slv2">Saliva 30min (SLV2)</label>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="saliva_3" id="st_slv3" checked>
-                                <label class="form-check-label" for="st_slv3">Saliva 4PM (SLV3)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="saliva_4" id="st_slv4" checked>
-                                <label class="form-check-label" for="st_slv4">Saliva Bedtime (SLV4)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="serum" id="st_srm">
-                                <label class="form-check-label" for="st_srm">Serum (SRM)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sample_types" value="dna_extract" id="st_dna">
-                                <label class="form-check-label" for="st_dna">DNA Extract (DNA)</label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">Register Selected Samples</button>
-                    <a href="{{ url_for('samples.tracker') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
-                </div>
+<div class="tgma-card" style="max-width:600px;">
+    <form method="POST" action="{{ url_for('samples.register') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Participant</label>
+            <select name="tracking_id" class="form-select" required>
+                <option value="">Select participant...</option>
+                {% for p in participants %}
+                <option value="{{ p.tracking_id }}" {{ 'selected' if request.args.get('tracking_id') == p.tracking_id }}>
+                    {{ p.tracking_id }} — {{ p.full_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Sample Types</label>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="sample_types" value="stool" id="st_stool" checked>
+                <label class="form-check-label" for="st_stool">
+                    <i class="bi bi-droplet-fill" style="color:var(--tgma-accent);"></i> Fecal Sample (STL) — for metagenomic sequencing
+                </label>
             </div>
-        </form>
-    </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="sample_types" value="saliva_cortisol" id="st_cortisol" checked>
+                <label class="form-check-label" for="st_cortisol">
+                    <i class="bi bi-droplet-fill" style="color:var(--tgma-green-500);"></i> Saliva for Cortisol (COR) — cortisol analysis
+                </label>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-tgma"><i class="bi bi-plus-circle"></i> Register Samples</button>
+            <a href="{{ url_for('samples.tracker') }}" class="btn btn-tgma-outline">Cancel</a>
+        </div>
+    </form>
 </div>
 {% endblock %}

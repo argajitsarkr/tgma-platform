@@ -49,3 +49,17 @@ class IdAllocation(db.Model):
 
     def __repr__(self):
         return f'<IdAllocation {self.tracking_id} ({self.status})>'
+
+
+class BloodReport(db.Model):
+    __tablename__ = 'blood_reports'
+    id = db.Column(db.Integer, primary_key=True)
+    tracking_id = db.Column(db.String(20), db.ForeignKey('participants.tracking_id', ondelete='CASCADE'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)
+    uploaded_by = db.Column(db.String(80), nullable=False)
+    uploaded_at = db.Column(db.DateTime, server_default=db.func.now())
+    notes = db.Column(db.Text, nullable=True)
+
+    participant = db.relationship('Participant', backref=db.backref('blood_reports', lazy='dynamic'))

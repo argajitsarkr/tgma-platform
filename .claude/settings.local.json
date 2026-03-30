@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -skLo datatables.min.js \"https://cdn.datatables.net/2.2.2/js/dataTables.min.js\")"
+    ]
+  }
+}

@@ -1,70 +1,76 @@
 {% extends "base.html" %}
 {% block title %}Batch Dispatch — TGMA Platform{% endblock %}
 {% block content %}
-<h4 class="mb-3">Batch Dispatch to Sequencing Vendor</h4>
+<h1 class="page-title">Batch Dispatch</h1>
+<p class="page-subtitle">Dispatch fecal samples to Nucleome Informatics for whole metagenome sequencing (32 samples per batch).</p>
 
-<div class="card">
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('samples.dispatch') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="tgma-card">
+    <form method="POST" action="{{ url_for('samples.dispatch') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                    <label class="form-label">Vendor</label>
-                    <input type="text" class="form-control" name="vendor" value="Nucleome Informatics" required>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Shipment Tracking Number</label>
-                    <input type="text" class="form-control" name="tracking_number" placeholder="Courier tracking #">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Manifest ID</label>
-                    <input type="text" class="form-control" name="manifest_id" placeholder="e.g., BATCH-001">
-                </div>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Vendor</label>
+                <input type="text" class="form-control" name="vendor" value="Nucleome Informatics" required>
             </div>
-
-            <p class="text-muted">Select stool samples to dispatch (batch size target: 32 samples):</p>
-
-            {% if eligible %}
-            <div class="mb-2">
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">Select All</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">Deselect All</button>
-                <span class="ms-3 text-muted" id="selectedCount">0 selected</span>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Shipment Tracking Number</label>
+                <input type="text" class="form-control" name="tracking_number" placeholder="Courier tracking #">
             </div>
-
-            <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th><input type="checkbox" id="selectAllCb" onchange="toggleAll(this)"></th>
-                            <th>Sample ID</th>
-                            <th>Participant</th>
-                            <th>Storage Location</th>
-                            <th>Storage Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for s in eligible %}
-                        <tr>
-                            <td><input type="checkbox" name="sample_ids" value="{{ s.sample_id }}" class="sample-cb" onchange="updateCount()"></td>
-                            <td>{{ s.sample_id }}</td>
-                            <td><a href="{{ url_for('participants.detail', tracking_id=s.tracking_id) }}">{{ s.tracking_id }}</a></td>
-                            <td>{{ s.freezer_location }}</td>
-                            <td>{{ s.storage_date or '-' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Manifest ID</label>
+                <input type="text" class="form-control" name="manifest_id" placeholder="e.g., BATCH-001">
             </div>
+        </div>
 
-            <button type="submit" class="btn btn-warning" onclick="return confirm('Dispatch selected samples? This will update their status.')">
-                Dispatch Selected Samples
+        {% if eligible %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <button type="button" class="btn btn-tgma-outline btn-sm" onclick="selectAll()">Select All</button>
+                <button type="button" class="btn btn-tgma-outline btn-sm" onclick="deselectAll()">Deselect All</button>
+                <span class="ms-3 text-muted fw-semibold" id="selectedCount">0 selected</span>
+            </div>
+            <span class="badge-tgma badge-info">{{ eligible | length }} eligible samples</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllCb" onchange="toggleAll(this)"></th>
+                        <th>Sample ID</th>
+                        <th>Participant</th>
+                        <th>Storage Location</th>
+                        <th>Storage Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in eligible %}
+                    <tr>
+                        <td><input type="checkbox" name="sample_ids" value="{{ s.sample_id }}" class="sample-cb" onchange="updateCount()"></td>
+                        <td><code>{{ s.sample_id }}</code></td>
+                        <td><a href="{{ url_for('participants.detail', tracking_id=s.tracking_id) }}">{{ s.tracking_id }}</a></td>
+                        <td>{{ s.freezer_location }}</td>
+                        <td>{{ s.storage_date or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-tgma" onclick="return confirm('Dispatch selected samples? This will update their status.')">
+                <i class="bi bi-box-seam"></i> Dispatch Selected
             </button>
-            {% else %}
-            <div class="alert alert-info">No stool samples currently in storage eligible for dispatch.</div>
-            {% endif %}
-        </form>
-    </div>
+            <a href="{{ url_for('samples.tracker') }}" class="btn btn-tgma-outline ms-2">Cancel</a>
+        </div>
+        {% else %}
+        <div class="text-center py-4" style="color:var(--tgma-muted);">
+            <i class="bi bi-box-seam" style="font-size:2rem;"></i>
+            <p class="mt-2">No stool samples currently in storage eligible for dispatch.</p>
+        </div>
+        {% endif %}
+    </form>
 </div>
 {% endblock %}
 

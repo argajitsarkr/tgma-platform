@@ -14,7 +14,6 @@ reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
 @reports_bp.route('/')
 @login_required
-@role_required('pi', 'co_pi', 'bioinformatician')
 def index():
     return render_template('reports/index.html')
 
@@ -67,10 +66,7 @@ def icmr_progress():
                            stool_collected=stool_collected,
                            target_sequencing=config['TARGET_SEQUENCING'],
                            hormone_count=hormone_count,
-                           seq_count=seq_count,
-                           budget_sequencing=config['BUDGET_SEQUENCING'],
-                           budget_hormones=config['BUDGET_HORMONES'],
-                           budget_shipment=config['BUDGET_SHIPMENT'])
+                           seq_count=seq_count)
 
 
 @reports_bp.route('/enrollment-csv')
