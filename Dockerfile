@@ -1,19 +1,15 @@
 FROM python:3.12-slim
 
-# System dependencies for WeasyPrint and psycopg2
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libffi-dev \
-    libpq-dev \
+# System dependencies for psycopg2
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install Python dependencies (skip WeasyPrint — PDF export optional)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir $(grep -v WeasyPrint requirements.txt)
 
 # Copy application
 COPY . .
