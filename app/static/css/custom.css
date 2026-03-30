@@ -1,4 +1,35 @@
 /* TGMA Dashboard -- Modern Clean Theme */
+
+/* Satoshi Font */
+@font-face {
+    font-family: 'Satoshi';
+    src: url('../vendor/fonts/Satoshi-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Satoshi';
+    src: url('../vendor/fonts/Satoshi-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Satoshi';
+    src: url('../vendor/fonts/Satoshi-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Satoshi';
+    src: url('../vendor/fonts/Satoshi-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     --tgma-bg: #F5F3EF;
     --tgma-card: #FFFFFF;
@@ -20,7 +51,7 @@
 
 body {
     background: var(--tgma-bg);
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Satoshi', 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: var(--tgma-text);
     min-height: 100vh;
 }
