@@ -68,6 +68,7 @@ def generate_synthetic_data(count=50):
     seq_counters = {f'{d}-{g}': 0 for d in districts for g in genders}
 
     participants_created = 0
+    used_positions = set()  # Track freezer positions to avoid duplicates
     for i in range(count):
         district = random.choices(districts, weights=district_weights)[0]
         gender = random.choice(genders)
@@ -211,22 +212,37 @@ def generate_synthetic_data(count=50):
                 dispatched_to = 'Nucleome Informatics'
                 dispatch_dt = date.today() - timedelta(days=random.randint(5, 30))
 
+            # Generate unique freezer position for non-blood samples
+            freezer_pos = {}
+            if st != 'blood':
+                while True:
+                    pos = (
+                        'F1',
+                        str(random.randint(1, 4)),
+                        str(random.randint(1, 3)),
+                        str(random.randint(1, 10)),
+                        chr(65 + random.randint(0, 8)),
+                        str(random.randint(1, 9)),
+                    )
+                    if pos not in used_positions:
+                        used_positions.add(pos)
+                        freezer_pos = dict(
+                            freezer_id=pos[0], rack=pos[1], shelf=pos[2],
+                            box_number=pos[3], box_row=pos[4], box_column=pos[5],
+                        )
+                        break
+
             sample = Sample(
                 sample_id=sid,
                 tracking_id=tracking_id,
                 sample_type=st,
                 collection_status='collected',
                 storage_status=storage_status,
-                freezer_id='F1' if st != 'blood' else None,
-                rack=str(random.randint(1, 4)) if st != 'blood' else None,
-                shelf=str(random.randint(1, 3)) if st != 'blood' else None,
-                box_number=str(random.randint(1, 10)) if st != 'blood' else None,
-                box_row=chr(65 + random.randint(0, 8)) if st != 'blood' else None,
-                box_column=str(random.randint(1, 9)) if st != 'blood' else None,
                 storage_date=p.enrollment_date,
                 storage_temp='-80' if st in ('stool', 'serum') else ('-80' if 'saliva' in st else None),
                 dispatched_to=dispatched_to,
                 dispatch_date=dispatch_dt,
+                **freezer_pos,
             )
             db.session.add(sample)
 
