@@ -24,10 +24,10 @@ from app.utils.helpers import generate_tracking_id, generate_sample_id
 def create_seed_users():
     """Create the 4 default user accounts."""
     users = [
-        {'username': 'pi_sb', 'full_name': 'Prof. Surajit Bhattacharjee', 'role': 'pi', 'password': 'changeme_pi_2026'},
-        {'username': 'copi_ssd', 'full_name': 'Dr. Shib Sekhar Datta', 'role': 'co_pi', 'password': 'changeme_copi_2026'},
-        {'username': 'bioinfo_as', 'full_name': 'Argajit Sarkar', 'role': 'bioinformatician', 'password': 'changeme_bioinfo_2026'},
-        {'username': 'field_sup', 'full_name': 'Field Supervisor', 'role': 'field_supervisor', 'password': 'changeme_field_2026'},
+        {'username': 'surajit_b', 'email': 'sbhattacharjee@gmail.com', 'full_name': 'Dr. Surajit Bhattacharjee', 'role': 'pi', 'password': 'E*jcKFqk306T'},
+        {'username': 'sanchari_p', 'email': 'thesanchari@gmail.com', 'full_name': 'Ms. Sanchari Pal', 'role': 'co_pi', 'password': 'D&xRtB2m78Nc'},
+        {'username': 'argajit_s', 'email': 'argajit05@gmail.com', 'full_name': 'Mr. Argajit Sarkar', 'role': 'bioinformatician', 'password': 'J&nXbH5k91Yd'},
+        {'username': 'field_sup', 'email': None, 'full_name': 'Field Supervisor', 'role': 'field_supervisor', 'password': 'changeme_field_2026'},
     ]
 
     for u in users:
@@ -35,7 +35,7 @@ def create_seed_users():
         if existing:
             print(f"  User '{u['username']}' already exists, skipping.")
             continue
-        user = User(username=u['username'], full_name=u['full_name'], role=u['role'])
+        user = User(username=u['username'], email=u['email'], full_name=u['full_name'], role=u['role'])
         user.set_password(u['password'])
         db.session.add(user)
         print(f"  Created user: {u['username']} ({u['role']})")
@@ -290,12 +290,11 @@ def main():
             print("Generating synthetic data...")
             generate_synthetic_data(50)
 
-        print("\nDone! Default login credentials:")
-        print("  PI:              pi_sb / changeme_pi_2026")
-        print("  Co-PI:           copi_ssd / changeme_copi_2026")
-        print("  Bioinformatician: bioinfo_as / changeme_bioinfo_2026")
-        print("  Field Supervisor: field_sup / changeme_field_2026")
-        print("\n  *** CHANGE THESE PASSWORDS IMMEDIATELY IN PRODUCTION ***")
+        print("\nDone! Login credentials:")
+        print("  PI:              surajit_b  (Dr. Surajit Bhattacharjee)")
+        print("  Co-PI:           sanchari_p (Ms. Sanchari Pal)")
+        print("  Bioinformatician: argajit_s  (Mr. Argajit Sarkar)")
+        print("  Field Supervisor: field_sup  (password: changeme_field_2026)")
 
 
 if __name__ == '__main__':
