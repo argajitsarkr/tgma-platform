@@ -1,14 +1,25 @@
 """KoboToolbox sync route — manual "Sync Now" button + sync log viewer."""
 
 import json
+import logging
 from flask import Blueprint, render_template, flash, redirect, url_for, current_app, request
 from flask_login import login_required, current_user
+from sqlalchemy import inspect
 
 from app.extensions import db
 from app.models import KoboSyncLog
 from app.utils.decorators import role_required
 
+logger = logging.getLogger(__name__)
 kobo_bp = Blueprint('kobo', __name__, url_prefix='/kobo')
+
+
+def _ensure_table():
+    """Create kobo_sync_log table if it doesn't exist yet (safe for first deploy)."""
+    inspector = inspect(db.engine)
+    if not inspector.has_table('kobo_sync_log'):
+        logger.info('Creating missing kobo_sync_log table...')
+        KoboSyncLog.__table__.create(db.engine)
 
 
 @kobo_bp.route('/')
@@ -16,6 +27,8 @@ kobo_bp = Blueprint('kobo', __name__, url_prefix='/kobo')
 @role_required('pi', 'co_pi', 'bioinformatician')
 def index():
     """Show sync dashboard with log history."""
+    _ensure_table()
+
     logs = KoboSyncLog.query.order_by(KoboSyncLog.started_at.desc()).limit(50).all()
 
     # Parse details_json for the most recent successful sync
@@ -38,6 +51,7 @@ def index():
 @role_required('pi', 'co_pi', 'bioinformatician')
 def trigger_sync():
     """Handle the 'Sync Now' button click."""
+    _ensure_table()
     full_sync = request.form.get('full_sync') == '1'
 
     # Import here to avoid circular imports

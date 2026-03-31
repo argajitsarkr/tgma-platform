@@ -217,6 +217,11 @@ conda run -n base python -m pytest tests/ -v
 **Fix**: Used `sys.path.insert(0, ...)` inside the route function to add the project root, then imported `from etl.kobo_sync import run_sync`.
 **Rule**: When importing from outside the app package (e.g., `etl/`), add project root to `sys.path` at import time. This is acceptable for a LAN-only deployment. For cleaner architecture, consider moving shared logic into the app package.
 
+### 17. New model table missing on deployed server (500 Internal Server Error)
+**What happened**: Added `KoboSyncLog` model with `kobo_sync_log` table locally, committed, and pushed. On the deployed server, the Docker container was rebuilt but `db.create_all()` was not re-run — so the table didn't exist. Visiting `/kobo/` caused a 500 error because SQLAlchemy tried to query a non-existent table.
+**Fix**: Added `_ensure_table()` helper in the kobo route that uses `sqlalchemy.inspect(db.engine).has_table('kobo_sync_log')` and creates it on-the-fly if missing. This makes the route self-healing on first access after deploy.
+**Rule**: When adding a new model/table, always handle the case where the deployed DB doesn't have it yet. Either: (a) add auto-create logic in the route, (b) use Flask-Migrate (`flask db migrate && flask db upgrade`), or (c) document that `init_db.py` must be re-run. Never assume `db.create_all()` has run for new tables on the server.
+
 ## Architecture Rules
 
 ### DO
