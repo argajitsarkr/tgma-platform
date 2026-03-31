@@ -54,28 +54,33 @@ def trigger_sync():
     _ensure_table()
     full_sync = request.form.get('full_sync') == '1'
 
-    # Import here to avoid circular imports
-    import sys
-    import os
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-    from etl.kobo_sync import run_sync
+    try:
+        # Import here to avoid circular imports
+        import sys
+        import os
+        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+        from etl.kobo_sync import run_sync
 
-    result = run_sync(
-        app=current_app._get_current_object(),
-        triggered_by=current_user.username,
-        full_sync=full_sync,
-    )
-
-    if result.status == 'success':
-        flash(
-            f'Sync complete: {result.inserted} new, {result.updated} updated, '
-            f'{result.skipped} skipped out of {result.total_fetched} submissions.',
-            'success'
+        result = run_sync(
+            app=current_app._get_current_object(),
+            triggered_by=current_user.username,
+            full_sync=full_sync,
         )
-    elif result.status == 'failed':
-        flash(f'Sync failed: {result.error_message}', 'danger')
-    else:
-        flash('Sync finished with unknown status.', 'warning')
+
+        if result.status == 'success':
+            flash(
+                f'Sync complete: {result.inserted} new, {result.updated} updated, '
+                f'{result.skipped} skipped out of {result.total_fetched} submissions.',
+                'success'
+            )
+        elif result.status == 'failed':
+            flash(f'Sync failed: {result.error_message}', 'danger')
+        else:
+            flash('Sync finished with unknown status.', 'warning')
+
+    except Exception as e:
+        logger.error(f'Sync trigger error: {e}')
+        flash(f'Sync error: {e}', 'danger')
 
     return redirect(url_for('kobo.index'))
 

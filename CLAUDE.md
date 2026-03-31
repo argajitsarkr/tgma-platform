@@ -222,6 +222,11 @@ conda run -n base python -m pytest tests/ -v
 **Fix**: Added `_ensure_table()` helper in the kobo route that uses `sqlalchemy.inspect(db.engine).has_table('kobo_sync_log')` and creates it on-the-fly if missing. This makes the route self-healing on first access after deploy.
 **Rule**: When adding a new model/table, always handle the case where the deployed DB doesn't have it yet. Either: (a) add auto-create logic in the route, (b) use Flask-Migrate (`flask db migrate && flask db upgrade`), or (c) document that `init_db.py` must be re-run. Never assume `db.create_all()` has run for new tables on the server.
 
+### 18. Nested app context crash when calling ETL from Flask route
+**What happened**: `run_sync()` used `with app.app_context():` unconditionally. When called from a Flask route (which already has an app context), this created a nested context. On exit, it popped the outer request context too, causing the returned `sync_log` object to become detached from the session → 500 Internal Server Error.
+**Fix**: Split into `_do_sync()` (core logic, no context management) and `run_sync()` (wrapper that checks `flask.has_app_context()` — if already in context, calls directly; if CLI, pushes a new one). Also wrapped the route handler in try/except so errors flash a message instead of returning a raw 500.
+**Rule**: Never unconditionally push `app.app_context()` in functions that may be called from both CLI and Flask routes. Use `flask.has_app_context()` to detect if a context already exists. Always wrap route-triggered operations in try/except to show user-friendly error messages.
+
 ## Architecture Rules
 
 ### DO

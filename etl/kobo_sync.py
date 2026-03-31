@@ -369,8 +369,113 @@ def upsert_submission(mapped):
 # Main sync engine — called from UI route or CLI
 # ---------------------------------------------------------------------------
 
+def _do_sync(app, triggered_by, full_sync):
+    """Internal sync logic — must be called inside an app context."""
+    # Create sync log entry
+    sync_log = KoboSyncLog(
+        triggered_by=triggered_by,
+        sync_mode='full' if full_sync else 'incremental',
+        status='running',
+        started_at=datetime.utcnow(),
+    )
+    db.session.add(sync_log)
+    db.session.commit()
+
+    details = []  # List of {tracking_id, action, reason}
+
+    try:
+        # Get Kobo credentials
+        api_url = app.config.get('KOBO_API_URL') or os.environ.get('KOBO_API_URL', '')
+        token = os.environ.get('KOBO_API_TOKEN', '')
+        form_id = os.environ.get('KOBO_FORM_ID', '')
+
+        if not all([api_url, token, form_id]):
+            raise ValueError(
+                'Missing KoboToolbox credentials. '
+                'Set KOBO_API_URL, KOBO_API_TOKEN, KOBO_FORM_ID in .env'
+            )
+
+        # Determine start point
+        state = load_sync_state()
+        since = None if full_sync else state.get('last_sync')
+
+        logger.info(f'KoboSync started by {triggered_by} (mode={"full" if full_sync else "incremental"}, since={since or "beginning"})')
+
+        # Fetch from API
+        submissions = fetch_submissions(api_url, token, form_id, since)
+        sync_log.total_fetched = len(submissions)
+
+        inserted, updated, skipped = 0, 0, 0
+
+        for sub in submissions:
+            mapped, error = map_submission(sub)
+
+            if error:
+                # Submission rejected — missing critical field
+                skipped += 1
+                tid = str(sub.get('tracking_id', '')).strip().upper() or f"Kobo#{sub.get('_id', '?')}"
+                details.append({
+                    'tracking_id': tid,
+                    'action': 'skipped',
+                    'reason': error,
+                })
+                continue
+
+            tid = mapped['participant']['tracking_id']
+            try:
+                action = upsert_submission(mapped)
+                if action == 'inserted':
+                    inserted += 1
+                else:
+                    updated += 1
+                details.append({
+                    'tracking_id': tid,
+                    'action': action,
+                    'reason': None,
+                })
+            except Exception as e:
+                db.session.rollback()
+                skipped += 1
+                details.append({
+                    'tracking_id': tid,
+                    'action': 'error',
+                    'reason': str(e),
+                })
+                logger.error(f'{tid}: DB error — {e}')
+
+        db.session.commit()
+
+        # Update sync state timestamp
+        state['last_sync'] = datetime.utcnow().isoformat()
+        save_sync_state(state)
+
+        # Finalize log
+        sync_log.inserted = inserted
+        sync_log.updated = updated
+        sync_log.skipped = skipped
+        sync_log.status = 'success'
+        sync_log.finished_at = datetime.utcnow()
+        sync_log.details_json = json.dumps(details, ensure_ascii=False)
+        db.session.commit()
+
+        logger.info(f'KoboSync complete: {inserted} new, {updated} updated, {skipped} skipped')
+        return sync_log
+
+    except Exception as e:
+        sync_log.status = 'failed'
+        sync_log.error_message = str(e)
+        sync_log.finished_at = datetime.utcnow()
+        sync_log.details_json = json.dumps(details, ensure_ascii=False) if details else None
+        db.session.commit()
+
+        logger.error(f'KoboSync FAILED: {e}')
+        return sync_log
+
+
 def run_sync(app, triggered_by='cli', full_sync=False):
     """Execute a KoboToolbox sync run.
+
+    Safe to call from both Flask routes (already has app context) and CLI (no context).
 
     Args:
         app: Flask app instance (for config and app context)
@@ -380,106 +485,14 @@ def run_sync(app, triggered_by='cli', full_sync=False):
     Returns:
         KoboSyncLog instance with results
     """
-    with app.app_context():
-        # Create sync log entry
-        sync_log = KoboSyncLog(
-            triggered_by=triggered_by,
-            sync_mode='full' if full_sync else 'incremental',
-            status='running',
-            started_at=datetime.utcnow(),
-        )
-        db.session.add(sync_log)
-        db.session.commit()
-
-        details = []  # List of {tracking_id, action, reason}
-
-        try:
-            # Get Kobo credentials
-            api_url = app.config.get('KOBO_API_URL') or os.environ.get('KOBO_API_URL', '')
-            token = os.environ.get('KOBO_API_TOKEN', '')
-            form_id = os.environ.get('KOBO_FORM_ID', '')
-
-            if not all([api_url, token, form_id]):
-                raise ValueError(
-                    'Missing KoboToolbox credentials. '
-                    'Set KOBO_API_URL, KOBO_API_TOKEN, KOBO_FORM_ID in .env'
-                )
-
-            # Determine start point
-            state = load_sync_state()
-            since = None if full_sync else state.get('last_sync')
-
-            logger.info(f'KoboSync started by {triggered_by} (mode={"full" if full_sync else "incremental"}, since={since or "beginning"})')
-
-            # Fetch from API
-            submissions = fetch_submissions(api_url, token, form_id, since)
-            sync_log.total_fetched = len(submissions)
-
-            inserted, updated, skipped = 0, 0, 0
-
-            for sub in submissions:
-                mapped, error = map_submission(sub)
-
-                if error:
-                    # Submission rejected — missing critical field
-                    skipped += 1
-                    tid = str(sub.get('tracking_id', '')).strip().upper() or f"Kobo#{sub.get('_id', '?')}"
-                    details.append({
-                        'tracking_id': tid,
-                        'action': 'skipped',
-                        'reason': error,
-                    })
-                    continue
-
-                tid = mapped['participant']['tracking_id']
-                try:
-                    action = upsert_submission(mapped)
-                    if action == 'inserted':
-                        inserted += 1
-                    else:
-                        updated += 1
-                    details.append({
-                        'tracking_id': tid,
-                        'action': action,
-                        'reason': None,
-                    })
-                except Exception as e:
-                    db.session.rollback()
-                    skipped += 1
-                    details.append({
-                        'tracking_id': tid,
-                        'action': 'error',
-                        'reason': str(e),
-                    })
-                    logger.error(f'{tid}: DB error — {e}')
-
-            db.session.commit()
-
-            # Update sync state timestamp
-            state['last_sync'] = datetime.utcnow().isoformat()
-            save_sync_state(state)
-
-            # Finalize log
-            sync_log.inserted = inserted
-            sync_log.updated = updated
-            sync_log.skipped = skipped
-            sync_log.status = 'success'
-            sync_log.finished_at = datetime.utcnow()
-            sync_log.details_json = json.dumps(details, ensure_ascii=False)
-            db.session.commit()
-
-            logger.info(f'KoboSync complete: {inserted} new, {updated} updated, {skipped} skipped')
-            return sync_log
-
-        except Exception as e:
-            sync_log.status = 'failed'
-            sync_log.error_message = str(e)
-            sync_log.finished_at = datetime.utcnow()
-            sync_log.details_json = json.dumps(details, ensure_ascii=False) if details else None
-            db.session.commit()
-
-            logger.error(f'KoboSync FAILED: {e}')
-            return sync_log
+    # If already inside an app context (called from a Flask route), run directly.
+    # If called from CLI (no context), push a new one.
+    import flask
+    if flask.has_app_context():
+        return _do_sync(app, triggered_by, full_sync)
+    else:
+        with app.app_context():
+            return _do_sync(app, triggered_by, full_sync)
 
 
 # ---------------------------------------------------------------------------
