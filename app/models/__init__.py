@@ -4,7 +4,7 @@ from .clinical import HealthScreening, Anthropometrics, MenstrualData
 from .survey import LifestyleData, EnvironmentSES
 from .sample import Sample
 from .results import HormoneResult, SequencingResult, MetabolicRisk
-from .admin import AuditLog, IdAllocation, BloodReport
+from .admin import AuditLog, IdAllocation, BloodReport, KoboSyncLog
 
 __all__ = [
     'User', 'Participant',
@@ -12,5 +12,5 @@ __all__ = [
     'LifestyleData', 'EnvironmentSES',
     'Sample',
     'HormoneResult', 'SequencingResult', 'MetabolicRisk',
-    'AuditLog', 'IdAllocation', 'BloodReport',
+    'AuditLog', 'IdAllocation', 'BloodReport', 'KoboSyncLog',
 ]

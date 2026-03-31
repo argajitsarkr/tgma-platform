@@ -53,6 +53,9 @@ def create_app(config_name=None):
     from .routes.reports import reports_bp
     app.register_blueprint(reports_bp)
 
+    from .routes.kobo import kobo_bp
+    app.register_blueprint(kobo_bp)
+
     # Context processor for templates
     @app.context_processor
     def inject_config():

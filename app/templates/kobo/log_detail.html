@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Sync Log #{{ log.id }} — TGMA Platform{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="page-title mb-0">Sync Log #{{ log.id }}</h1>
+        <p class="page-subtitle mb-0">
+            {{ log.started_at.strftime('%d %B %Y at %H:%M:%S') if log.started_at else '—' }}
+            — triggered by <strong>{{ log.triggered_by }}</strong>
+        </p>
+    </div>
+    <a href="{{ url_for('kobo.index') }}" class="btn btn-tgma-outline"><i class="bi bi-arrow-left"></i> Back to Sync</a>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="stat-card {% if log.status == 'success' %}accent{% endif %}">
+            <div class="stat-icon {% if log.status == 'success' %}white{% else %}green{% endif %}">
+                {% if log.status == 'success' %}
+                <i class="bi bi-check-circle-fill"></i>
+                {% elif log.status == 'failed' %}
+                <i class="bi bi-x-circle-fill"></i>
+                {% else %}
+                <i class="bi bi-arrow-repeat"></i>
+                {% endif %}
+            </div>
+            <div class="stat-value" style="font-size:1.2rem;">{{ log.status | title }}</div>
+            <div class="stat-label">Status</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-cloud-download"></i></div>
+            <div class="stat-value">{{ log.total_fetched or 0 }}</div>
+            <div class="stat-label">Fetched</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-plus-circle"></i></div>
+            <div class="stat-value">{{ log.inserted or 0 }}</div>
+            <div class="stat-label">Inserted</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-pencil-square"></i></div>
+            <div class="stat-value">{{ log.updated or 0 }}</div>
+            <div class="stat-label">Updated</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-skip-forward-circle"></i></div>
+            <div class="stat-value">{{ log.skipped or 0 }}</div>
+            <div class="stat-label">Skipped</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-stopwatch"></i></div>
+            <div class="stat-value" style="font-size:1.5rem;">
+                {% if log.finished_at and log.started_at %}
+                    {{ ((log.finished_at - log.started_at).total_seconds()) | round(1) }}s
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+            <div class="stat-label">Duration</div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Message -->
+{% if log.error_message %}
+<div class="alert alert-danger mb-4">
+    <strong><i class="bi bi-exclamation-triangle"></i> Error:</strong> {{ log.error_message }}
+</div>
+{% endif %}
+
+<!-- Meta Info -->
+<div class="tgma-card mb-4">
+    <div class="tgma-card-header"><i class="bi bi-info-circle"></i> Run Information</div>
+    <table class="table table-sm mb-0">
+        <tr><th>Sync Mode</th><td>{{ log.sync_mode | title }}</td></tr>
+        <tr><th>Started</th><td>{{ log.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if log.started_at else '—' }}</td></tr>
+        <tr><th>Finished</th><td>{{ log.finished_at.strftime('%Y-%m-%d %H:%M:%S UTC') if log.finished_at else '—' }}</td></tr>
+        <tr><th>Triggered By</th><td>{{ log.triggered_by }}</td></tr>
+    </table>
+</div>
+
+<!-- Per-Submission Details -->
+{% if details %}
+<div class="tgma-card mb-4">
+    <div class="tgma-card-header">
+        <span><i class="bi bi-list-ul"></i> Submission-Level Details</span>
+        <span>
+            <span class="badge-tgma badge-success">{{ details | selectattr('action', 'equalto', 'inserted') | list | length }} new</span>
+            <span class="badge-tgma badge-info">{{ details | selectattr('action', 'equalto', 'updated') | list | length }} updated</span>
+            <span class="badge-tgma badge-warning">{{ details | selectattr('action', 'equalto', 'skipped') | list | length }} skipped</span>
+            {% set error_count = details | selectattr('action', 'equalto', 'error') | list | length %}
+            {% if error_count %}
+            <span class="badge-tgma badge-danger">{{ error_count }} errors</span>
+            {% endif %}
+        </span>
+    </div>
+
+    <!-- Filter buttons -->
+    <div class="mb-3">
+        <button class="btn btn-tgma-outline btn-sm detail-filter active" data-filter="all">All ({{ details | length }})</button>
+        <button class="btn btn-tgma-outline btn-sm detail-filter" data-filter="inserted">New</button>
+        <button class="btn btn-tgma-outline btn-sm detail-filter" data-filter="updated">Updated</button>
+        <button class="btn btn-tgma-outline btn-sm detail-filter" data-filter="skipped">Skipped</button>
+        <button class="btn btn-tgma-outline btn-sm detail-filter" data-filter="error">Errors</button>
+    </div>
+
+    <div class="table-responsive" style="max-height:500px;overflow-y:auto;">
+        <table class="table table-hover mb-0" id="detailsTable">
+            <thead style="position:sticky;top:0;z-index:1;">
+                <tr>
+                    <th>#</th>
+                    <th>Tracking ID</th>
+                    <th>Action</th>
+                    <th>Reason / Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in details %}
+                <tr data-action="{{ d.action }}">
+                    <td>{{ loop.index }}</td>
+                    <td>
+                        {% if d.action in ('inserted', 'updated') %}
+                        <a href="{{ url_for('participants.detail', tracking_id=d.tracking_id) }}"><code>{{ d.tracking_id }}</code></a>
+                        {% else %}
+                        <code>{{ d.tracking_id }}</code>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.action == 'inserted' %}
+                        <span class="badge-tgma badge-success">New</span>
+                        {% elif d.action == 'updated' %}
+                        <span class="badge-tgma badge-info">Updated</span>
+                        {% elif d.action == 'skipped' %}
+                        <span class="badge-tgma badge-warning">Skipped</span>
+                        {% else %}
+                        <span class="badge-tgma badge-danger">Error</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.85rem;color:var(--tgma-muted);">{{ d.reason or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="tgma-card mb-4">
+    <div class="text-center py-4" style="color:var(--tgma-muted);">
+        <i class="bi bi-clipboard-x" style="font-size:2rem;"></i>
+        <p class="mt-2 mb-0">No submission-level details available for this sync run.</p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Filter detail rows by action type
+document.querySelectorAll('.detail-filter').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.detail-filter').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        var filter = this.dataset.filter;
+        document.querySelectorAll('#detailsTable tbody tr').forEach(function(row) {
+            if (filter === 'all' || row.dataset.action === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

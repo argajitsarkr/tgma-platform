@@ -21,6 +21,9 @@ class BaseConfig:
     SEQUENCING_BATCH_SIZE = 32
     TOTAL_BATCHES_YEAR1 = 5
 
+    # KoboToolbox
+    KOBO_API_URL = os.environ.get('KOBO_API_URL', 'https://kf.kobotoolbox.org')
+
     # GPS bounds for Tripura
     GPS_LAT_MIN = 22.9
     GPS_LAT_MAX = 24.5

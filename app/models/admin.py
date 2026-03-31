@@ -51,6 +51,36 @@ class IdAllocation(db.Model):
         return f'<IdAllocation {self.tracking_id} ({self.status})>'
 
 
+class KoboSyncLog(db.Model):
+    """Log of every KoboToolbox sync run — what was synced, skipped, and why."""
+    __tablename__ = 'kobo_sync_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    started_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+    finished_at = db.Column(db.DateTime, nullable=True)
+    triggered_by = db.Column(db.String(80), nullable=False)  # username who clicked Sync Now
+    sync_mode = db.Column(db.String(20), nullable=False, default='incremental')  # incremental or full
+    status = db.Column(db.String(20), nullable=False, default='running')  # running, success, failed
+
+    # Counters
+    total_fetched = db.Column(db.Integer, default=0)
+    inserted = db.Column(db.Integer, default=0)
+    updated = db.Column(db.Integer, default=0)
+    skipped = db.Column(db.Integer, default=0)
+
+    # Detailed log — JSON array of {tracking_id, action, reason}
+    details_json = db.Column(db.Text, nullable=True)
+
+    error_message = db.Column(db.Text, nullable=True)
+
+    __table_args__ = (
+        db.Index('ix_kobo_sync_started', 'started_at'),
+    )
+
+    def __repr__(self):
+        return f'<KoboSyncLog #{self.id} {self.status} at {self.started_at}>'
+
+
 class BloodReport(db.Model):
     __tablename__ = 'blood_reports'
     id = db.Column(db.Integer, primary_key=True)

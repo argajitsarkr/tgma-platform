@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}KoboToolbox Sync — TGMA Platform{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="page-title mb-0">KoboToolbox Sync</h1>
+        <p class="page-subtitle mb-0">Pull submitted forms from KoboToolbox into the database.</p>
+    </div>
+</div>
+
+<!-- Sync Controls -->
+<div class="tgma-card mb-4">
+    <div class="tgma-card-header">
+        <span><i class="bi bi-cloud-download"></i> Sync Controls</span>
+    </div>
+    <div class="row align-items-end g-3">
+        <div class="col-md-8">
+            <p style="font-size:0.9rem;color:var(--tgma-muted);margin-bottom:0.5rem;">
+                <i class="bi bi-info-circle"></i>
+                <strong>Incremental</strong> pulls only submissions since the last sync.
+                <strong>Full</strong> re-downloads all submissions and upserts everything (safe — won't duplicate).
+            </p>
+            <p style="font-size:0.85rem;color:var(--tgma-muted);margin:0;">
+                Submissions missing <code>tracking_id</code>, <code>full_name</code>, <code>gender</code>, or <code>district</code>
+                will be <strong>skipped</strong>. Optional empty sections (anthropometrics, lifestyle, etc.) are accepted as NULL.
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <form method="POST" action="{{ url_for('kobo.trigger_sync') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="full_sync" value="0">
+                <button type="submit" class="btn btn-tgma" onclick="this.disabled=true;this.innerHTML='<i class=\'bi bi-arrow-repeat spin\'></i> Syncing...';this.form.submit();">
+                    <i class="bi bi-cloud-download"></i> Sync Now
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('kobo.trigger_sync') }}" class="d-inline ms-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="full_sync" value="1">
+                <button type="submit" class="btn btn-tgma-outline" onclick="this.disabled=true;this.innerHTML='<i class=\'bi bi-arrow-repeat spin\'></i> Syncing...';this.form.submit();">
+                    <i class="bi bi-arrow-clockwise"></i> Full Re-sync
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Sync History -->
+<div class="tgma-card mb-4">
+    <div class="tgma-card-header">
+        <span><i class="bi bi-clock-history"></i> Sync History</span>
+        <span class="badge-tgma badge-info">{{ logs | length }} runs</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>When</th>
+                    <th>Triggered By</th>
+                    <th>Mode</th>
+                    <th>Status</th>
+                    <th>Fetched</th>
+                    <th>Inserted</th>
+                    <th>Updated</th>
+                    <th>Skipped</th>
+                    <th>Duration</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td style="white-space:nowrap;">{{ log.started_at.strftime('%d %b %Y %H:%M') if log.started_at else '—' }}</td>
+                    <td>{{ log.triggered_by }}</td>
+                    <td>
+                        {% if log.sync_mode == 'full' %}
+                        <span class="badge-tgma badge-warning">Full</span>
+                        {% else %}
+                        <span class="badge-tgma badge-info">Incremental</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.status == 'success' %}
+                        <span class="badge-tgma badge-success"><i class="bi bi-check-circle"></i> Success</span>
+                        {% elif log.status == 'failed' %}
+                        <span class="badge-tgma badge-danger"><i class="bi bi-x-circle"></i> Failed</span>
+                        {% else %}
+                        <span class="badge-tgma badge-warning"><i class="bi bi-arrow-repeat"></i> Running</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.total_fetched or 0 }}</td>
+                    <td style="color:var(--tgma-accent);font-weight:600;">{{ log.inserted or 0 }}</td>
+                    <td style="color:#1E40AF;font-weight:600;">{{ log.updated or 0 }}</td>
+                    <td style="color:{% if log.skipped %}#991B1B{% else %}var(--tgma-muted){% endif %};font-weight:600;">{{ log.skipped or 0 }}</td>
+                    <td style="white-space:nowrap;">
+                        {% if log.finished_at and log.started_at %}
+                            {{ ((log.finished_at - log.started_at).total_seconds()) | round(1) }}s
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('kobo.log_detail', log_id=log.id) }}" class="btn btn-tgma-outline btn-sm" style="padding:0.2rem 0.5rem;font-size:0.75rem;">
+                            <i class="bi bi-eye"></i> Details
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="11" class="text-center py-4" style="color:var(--tgma-muted);">
+                        <i class="bi bi-cloud-slash" style="font-size:2rem;"></i>
+                        <p class="mt-2 mb-0">No sync runs yet. Click <strong>Sync Now</strong> to pull data from KoboToolbox.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Latest Sync Details Preview -->
+{% if latest_details %}
+<div class="tgma-card mb-4">
+    <div class="tgma-card-header">
+        <span><i class="bi bi-list-check"></i> Latest Sync — Submission Details</span>
+        <span class="badge-tgma badge-info">{{ latest_details | length }} submissions</span>
+    </div>
+    <div class="table-responsive" style="max-height:400px;overflow-y:auto;">
+        <table class="table table-hover mb-0">
+            <thead style="position:sticky;top:0;z-index:1;">
+                <tr>
+                    <th>Tracking ID</th>
+                    <th>Action</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in latest_details %}
+                <tr>
+                    <td>
+                        {% if d.action in ('inserted', 'updated') %}
+                        <a href="{{ url_for('participants.detail', tracking_id=d.tracking_id) }}"><code>{{ d.tracking_id }}</code></a>
+                        {% else %}
+                        <code>{{ d.tracking_id }}</code>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.action == 'inserted' %}
+                        <span class="badge-tgma badge-success">New</span>
+                        {% elif d.action == 'updated' %}
+                        <span class="badge-tgma badge-info">Updated</span>
+                        {% elif d.action == 'skipped' %}
+                        <span class="badge-tgma badge-warning">Skipped</span>
+                        {% else %}
+                        <span class="badge-tgma badge-danger">Error</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.85rem;color:var(--tgma-muted);">{{ d.reason or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display: inline-block; animation: spin 1s linear infinite; }
+</style>
+{% endblock %}

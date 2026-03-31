@@ -29,6 +29,13 @@
         <li><a href="{{ url_for('quality.dashboard') }}" class="{{ 'active' if request.blueprint == 'quality' }}"><i class="bi bi-shield-check"></i> Data Quality</a></li>
     </ul>
 
+    <div class="sidebar-section">Data</div>
+    <ul class="sidebar-nav">
+        {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+        <li><a href="{{ url_for('kobo.index') }}" class="{{ 'active' if request.blueprint == 'kobo' }}"><i class="bi bi-cloud-download"></i> KoboToolbox Sync</a></li>
+        {% endif %}
+    </ul>
+
     <div class="sidebar-section">General</div>
     <ul class="sidebar-nav">
         <li><a href="{{ url_for('ml.status') }}" class="{{ 'active' if request.blueprint == 'ml' }}"><i class="bi bi-cpu"></i> ML Pipeline</a></li>

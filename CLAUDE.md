@@ -4,6 +4,8 @@
 TGMA (Tripura Gut Microbiome in Adolescents) — Flask 3.1 research data management platform.
 ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN-only, Docker deployment.
 
+**Status (March 2026)**: Platform is **feature-complete**. All 54+ source files built, 25 tests passing, Docker deployment ready.
+
 ## Deployment
 - **Server**: PowerEdge R730, Ubuntu, Docker Compose at `/home/mmilab/Desktop/tgma-platform`
 - **Access**: http://192.168.1.35:8100 (LAN only, no internet)
@@ -11,6 +13,126 @@ ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN
 - **Rebuild flow**: `git pull && sudo docker compose down && sudo docker compose up -d --build`
 - **Re-seed DB**: `sudo docker compose exec web python scripts/init_db.py --synthetic`
 - **Full reset (wipes data)**: add `-v` flag to `docker compose down`
+- **Dev machine**: Windows (Anaconda), run with `conda run -n base python`
+
+## Build Verification
+```bash
+# App factory smoke test
+conda run -n base python -c "from app import create_app; app = create_app('testing'); print('OK')"
+
+# Full test suite (25 tests)
+conda run -n base python -m pytest tests/ -v
+```
+
+## Complete File Inventory
+
+### App Core
+| File | Purpose |
+|------|---------|
+| `wsgi.py` | WSGI entry point |
+| `config.py` | DevelopmentConfig / ProductionConfig / TestingConfig; study params (TARGET_ENROLLMENT=440, TARGET_SAMPLES_YEAR1=160, SEQUENCING_BATCH_SIZE=32) |
+| `requirements.txt` | All Python deps (Flask 3.1, SQLAlchemy, pandas, python-barcode, gunicorn, etc.) |
+| `.env.example` | Template for environment variables (DB, Kobo, upload paths) |
+| `app/__init__.py` | App factory — registers all 8 blueprints, extensions, context processor |
+| `app/extensions.py` | SQLAlchemy, Migrate, LoginManager, CSRFProtect |
+| `app/auth.py` | Login/logout blueprint, Flask-Login user_loader |
+
+### Models (8 files)
+| File | Tables |
+|------|--------|
+| `app/models/__init__.py` | Re-exports all models |
+| `app/models/user.py` | `users` — bcrypt password hashing, roles (pi, co_pi, bioinformatician, field_supervisor) |
+| `app/models/participant.py` | `participants` — PK is `tracking_id` (VARCHAR 20), enrollment status, GPS coords |
+| `app/models/clinical.py` | `health_screenings`, `anthropometrics`, `menstrual_data` — computed BMI, waist-hip ratio |
+| `app/models/survey.py` | `lifestyle_data`, `environment_ses` — diet, activity, SES data from KoboToolbox |
+| `app/models/sample.py` | `samples`, `sample_shipments` — freezer positions (UNIQUE constraint), chain of custody |
+| `app/models/results.py` | `hormone_results`, `sequencing_results`, `id_allocations` — HOMA-IR, TG/HDL computed props |
+| `app/models/admin.py` | `audit_log`, `blood_reports` — PDF upload storage for diagnostics |
+
+### Route Blueprints (8 files)
+| File | URL Prefix | Key Features |
+|------|-----------|--------------|
+| `app/routes/__init__.py` | — | Package init |
+| `app/routes/dashboard.py` | `/` | Stats cards, enrollment progress, district breakdown charts |
+| `app/routes/participants.py` | `/participants` | CRUD, server-side DataTables API (`api_data`), detail view |
+| `app/routes/samples.py` | `/samples` | Register, tracker, freezer map, dispatch, detail; ALLOWED_SAMPLE_TYPES = ['stool', 'saliva_cortisol'] |
+| `app/routes/diagnostics.py` | `/diagnostics` | Blood report PDF upload (NOT Excel import) |
+| `app/routes/ids.py` | `/ids` | Bulk ID allocation per district |
+| `app/routes/quality.py` | `/quality` | GPS bounds check, outlier detection (|Z|>3), duplicates, missing data, incomplete sample sets |
+| `app/routes/ml.py` | `/ml` | Placeholder for ML pipeline status |
+| `app/routes/reports.py` | `/reports` | ICMR progress report, export-ready |
+
+### Templates (16 files)
+| File | Notes |
+|------|-------|
+| `app/templates/base.html` | Sidebar layout, Satoshi font, Bootstrap 5, DataTables, Chart.js — all local assets |
+| `app/templates/login.html` | Centered login card |
+| `app/templates/dashboard.html` | Stat cards, enrollment chart, district pie |
+| `app/templates/participants/list.html` | Server-side DataTables with district/gender/status/lifestyle filters |
+| `app/templates/participants/detail.html` | Tabbed view: demographics, clinical, samples, surveys |
+| `app/templates/samples/tracker.html` | Sample pipeline overview |
+| `app/templates/samples/register.html` | New sample form |
+| `app/templates/samples/detail.html` | Single sample view |
+| `app/templates/samples/freezer.html` | Freezer grid map |
+| `app/templates/samples/dispatch.html` | Shipment management |
+| `app/templates/diagnostics/index.html` | Blood report PDF upload |
+| `app/templates/ids/allocate.html` | Bulk ID generation |
+| `app/templates/quality/dashboard.html` | Data quality dashboard (GPS, outliers, duplicates, completeness) |
+| `app/templates/ml/status.html` | Coming soon placeholder |
+| `app/templates/reports/index.html` | Report listing |
+| `app/templates/reports/icmr_progress.html` | ICMR progress report template |
+
+### Static Assets
+| File | Notes |
+|------|-------|
+| `app/static/css/custom.css` | Full custom theme — Satoshi font, green palette (#2D6A4F), sidebar, cards, tables, responsive, print |
+| `app/static/js/charts.js` | Chart.js helpers for dashboard |
+| `app/static/vendor/bootstrap.min.css` | Bootstrap 5 (local) |
+| `app/static/vendor/bootstrap.bundle.min.js` | Bootstrap 5 JS (local) |
+| `app/static/vendor/jquery.min.js` | jQuery 3 (local) |
+| `app/static/vendor/chart.min.js` | Chart.js (local) |
+| `app/static/vendor/datatables.min.js` | DataTables (local) |
+| `app/static/vendor/datatables.min.css` | DataTables CSS (local) |
+| `app/static/vendor/fonts/Satoshi-*.woff2` | Satoshi font family (Light, Regular, Medium, Bold) |
+
+### Utils
+| File | Purpose |
+|------|---------|
+| `app/utils/__init__.py` | Package init |
+| `app/utils/helpers.py` | `validate_tracking_id()`, `generate_tracking_id()`, `generate_sample_id()`, `validate_gps()`, `validate_age()`; TRACKING_ID_PATTERN = `TGMA-(WT|ST|DL)-(M|F)-(\d{4})`; SAMPLE_SUFFIXES dict (STL, BLD, SLV1-4, COR, DNA, SRM) |
+| `app/utils/decorators.py` | `@role_required()` decorator for route protection |
+| `app/utils/audit.py` | Audit logging helper |
+
+### ETL Scripts (3 files)
+| File | Purpose |
+|------|---------|
+| `etl/kobo_sync.py` | KoboToolbox REST API sync — paginated fetch, field mapping, GPS validation, upsert to DB. Cron-friendly. Supports `--full` re-sync. |
+| `etl/hormone_import.py` | Import hormone/diagnostics results from Excel/CSV — validates ranges, maps columns, supports `--dry-run` |
+| `etl/sequencing_import.py` | Import Nucleome Informatics vendor manifest TSV — per-sample sequencing stats into `sequencing_results` |
+
+### Deployment (5 files)
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | python:3.12-slim, libpq-dev + gcc only, WeasyPrint excluded via grep, gunicorn (4 workers), non-root user not yet added |
+| `docker-compose.yml` | PostgreSQL 16-alpine + Flask/Gunicorn; DB port NOT exposed (mistake #9); `WEB_PORT` configurable (default 8100); static volume mount |
+| `nginx.conf` | Reverse proxy config for optional Nginx in front of Gunicorn; LAN-only bind |
+| `systemd/tgma-dashboard.service` | Systemd unit file for non-Docker deployment option |
+| `scripts/backup.sh` | Daily pg_dump with 30-day retention |
+
+### Scripts
+| File | Purpose |
+|------|---------|
+| `scripts/init_db.py` | DB init + seed users + `--synthetic` flag for ~50 test participants. **Contains real user credentials — repo must be PRIVATE.** |
+| `scripts/init_db.sql` | PostgreSQL extensions (pg_trgm). Mounted in Docker entrypoint. |
+| `scripts/generate_barcodes.py` | Generate Code128 barcode label PDFs using python-barcode. Supports `--ids`, `--range`, `--samples`, `--from-db`. |
+| `scripts/parse_kobo.py` | Utility to parse KoboToolbox form JSON and list survey fields (not committed) |
+
+### Tests (3 files)
+| File | Tests |
+|------|-------|
+| `tests/conftest.py` | App factory with TestingConfig (SQLite in-memory), session rollback per test, `pi_user` and `auth_client` fixtures |
+| `tests/test_models.py` | 19 tests — tracking ID validation, sample ID generation, GPS bounds, age validation, BMI/WHR computation, HOMA-IR, TG/HDL ratio, password hashing, role checks |
+| `tests/test_auth.py` | 6 tests — login page, success/failure login, protected route redirect, logout |
 
 ## Mistakes Log — Do NOT Repeat
 
@@ -63,6 +185,14 @@ ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN
 **What happened**: `git clone <url>` without `.` created a subdirectory instead of cloning into current dir. User then couldn't find `.env.example`.
 **Rule**: Use `git clone <url> .` to clone into current directory. Verify with `ls` after clone.
 
+### 11. Read tool required before Write on existing files
+**What happened**: Claude Code Write tool rejects writes to files that haven't been read first in the session, even for new content.
+**Rule**: Always Read a file before attempting to Write/Edit it, even if you know the contents.
+
+### 12. Context window exhaustion during large builds
+**What happened**: Building 54+ files in a single session repeatedly hit context limits, requiring session continuations.
+**Rule**: For large multi-file builds, create files in parallel batches and commit frequently. Use the plan file to track progress across sessions.
+
 ## Architecture Rules
 
 ### DO
@@ -71,6 +201,10 @@ ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN
 - Use `saliva_cortisol` for the new cortisol saliva sample type (suffix: COR)
 - Use green color palette: #2D6A4F (primary), #52B788 (secondary), #95D5B2, #B7E4C7
 - Use `tgma-card` class for cards, `stat-card` for stat cards, `btn-tgma` for buttons
+- Use Satoshi font family (woff2 files in `app/static/vendor/fonts/`)
+- All vendor libraries must be local files (no CDN — LAN-only server has no internet)
+- DataTables for server-side paginated tables (participants list)
+- Chart.js for dashboard visualizations
 - Test with `conda run -n base python -m pytest tests/ -v` on Windows dev machine
 - Commit with `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 
@@ -83,20 +217,51 @@ ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN
 - Do NOT run `docker compose down -v` unless explicitly asked (destroys all data)
 - Do NOT add WeasyPrint or heavy system dependencies to Dockerfile unless specifically needed
 - Do NOT assume Python 3.x is default on Windows — use `conda run -n base python`
+- Do NOT use multiline strings in `conda run -n base python -c` on Windows
 
-## File Structure Key Points
-- `config.py` — TARGET_SAMPLES_YEAR1=160, SEQUENCING_BATCH_SIZE=32
-- `app/models/admin.py` — AuditLog + BloodReport models
-- `app/routes/diagnostics.py` — PDF upload (NOT Excel import anymore)
-- `app/routes/samples.py` — ALLOWED_SAMPLE_TYPES = ['stool', 'saliva_cortisol']
-- `app/templates/samples/qc.html` — DELETED (vendor handles QC)
-- `app/templates/diagnostics/import.html` — DELETED (replaced by index.html for PDF upload)
-- `scripts/init_db.py` — Has real user credentials (repo must be PRIVATE when these are present)
+## CSS Theme Reference
+- **Background**: `--tgma-bg: #F5F3EF`
+- **Card**: `--tgma-card: #FFFFFF` with `--tgma-border: #E8E5DF`
+- **Primary accent**: `--tgma-accent: #2D6A4F` / hover: `#245A42`
+- **Light green**: `--tgma-accent-light: #D8F3DC`
+- **Greens**: `--tgma-green-500: #52B788`, `--tgma-green-300: #95D5B2`, `--tgma-green-200: #B7E4C7`
+- **Text**: `--tgma-text: #1B1B1B`, muted: `--tgma-muted: #6B7280`
+- **Radius**: `--tgma-radius: 14px`, small: `10px`
+- **Sidebar width**: `260px`
+- **Responsive**: sidebar hidden below 768px
+- **Print**: sidebar, top-bar, buttons, tabs hidden
+
+## Study Parameters (config.py)
+| Parameter | Value |
+|-----------|-------|
+| TARGET_ENROLLMENT | 440 |
+| TARGET_SAMPLES_YEAR1 | 160 |
+| TARGET_SEQUENCING | 160 |
+| DISTRICT_TARGETS | WT: 200, ST: 100, DL: 100 |
+| LIFESTYLE_GROUPS | AT, AP, SDT, SP (100 each) |
+| SEQUENCING_BATCH_SIZE | 32 |
+| TOTAL_BATCHES_YEAR1 | 5 |
+| GPS bounds | Lat: 22.9–24.5, Lon: 91.1–92.3 |
 
 ## Users
 | Username | Role | Real Person |
 |----------|------|-------------|
-| surajit_b | PI | Dr. Surajit Bhattacharjee |
-| sanchari_p | Co-PI | Ms. Sanchari Pal |
-| argajit_s | Bioinformatician | Mr. Argajit Sarkar |
-| field_sup | Field Supervisor | TBD |
+| surajit_b | pi | Dr. Surajit Bhattacharjee |
+| sanchari_p | co_pi | Ms. Sanchari Pal |
+| argajit_s | bioinformatician | Mr. Argajit Sarkar |
+| field_sup | field_supervisor | TBD |
+
+## Git History (as of March 2026)
+```
+08c8656 Add Satoshi font family for clean modern typography
+dc945ef Add CLAUDE.md with project intelligence and mistakes log
+379803f Major UI refactor: modern dashboard, simplified workflows
+2f93dfd Fix CSRF error: disable secure cookie for LAN-only HTTP access
+2a826d9 Bind web container to LAN IP for network access
+e7cdb73 Add email field to User model, set real user credentials
+ee64e5a Fix synthetic data: prevent duplicate freezer positions
+ff7c635 Fix Dockerfile pip install: use filtered requirements file
+71eee58 Fix Dockerfile: simplify deps, skip WeasyPrint for now
+de650a3 Adapt docker-compose for shared server deployment
+e37428b Initial commit: TGMA Research Data Platform
+```
