@@ -109,7 +109,7 @@ conda run -n base python -m pytest tests/ -v
 ### ETL Scripts (3 files)
 | File | Purpose |
 |------|---------|
-| `etl/kobo_sync.py` | KoboToolbox sync engine — importable `run_sync()` function called from UI route OR CLI. Paginated API fetch, critical-field validation (rejects missing tracking_id/full_name/gender/district), idempotent upsert by tracking_id, sync log with per-submission details. Supports `--full` re-sync. |
+| `etl/kobo_sync.py` | KoboToolbox sync engine — `_do_sync()` core logic + `run_sync()` context-aware wrapper (uses `flask.has_app_context()` to decide whether to push new context or reuse existing). Paginated API fetch, critical-field validation, idempotent upsert, sync log with per-submission details. Supports `--full` re-sync. |
 | `etl/hormone_import.py` | Import hormone/diagnostics results from Excel/CSV — validates ranges, maps columns, supports `--dry-run` |
 | `etl/sequencing_import.py` | Import Nucleome Informatics vendor manifest TSV — per-sample sequencing stats into `sequencing_results` |
 
@@ -129,6 +129,7 @@ conda run -n base python -m pytest tests/ -v
 | `scripts/init_db.sql` | PostgreSQL extensions (pg_trgm). Mounted in Docker entrypoint. |
 | `scripts/generate_barcodes.py` | Generate Code128 barcode label PDFs using python-barcode. Supports `--ids`, `--range`, `--samples`, `--from-db`. |
 | `scripts/parse_kobo.py` | Utility to parse KoboToolbox form JSON and list survey fields (not committed) |
+| `scripts/test_kobo_route.py` | Dev-only smoke test for `/kobo/` route — creates in-memory DB, logs in as PI, checks 200 response. Not committed to repo. |
 
 ### Tests (4 files, 44 tests total)
 | File | Tests |
@@ -260,6 +261,8 @@ conda run -n base python -m pytest tests/ -v
 - Do NOT auto-sync KoboToolbox on a schedule — manual "Sync Now" button only (PI controls when)
 - Do NOT accept KoboToolbox submissions missing critical fields (tracking_id, full_name, gender, district) — reject and log the reason
 - Do NOT write test assertions against a specific error message when multiple validation layers exist — assert `error is not None` unless you're sure which layer fires first
+- Do NOT push `app.app_context()` unconditionally in functions called from both routes and CLI — always check `flask.has_app_context()` first
+- Do NOT let route handler exceptions bubble up as raw 500s — always wrap in try/except and flash a user-friendly message
 
 ## CSS Theme Reference
 - **Background**: `--tgma-bg: #F5F3EF`
@@ -309,6 +312,9 @@ conda run -n base python -m pytest tests/ -v
 
 ## Git History (as of March 2026)
 ```
+0173610 Fix Sync Now 500 error: nested app context + unhandled exception
+bf78019 Fix KoboToolbox sync 500 error: auto-create missing table on first access
+6de0359 Update CLAUDE.md with KoboToolbox sync docs, 4 new mistakes, and architecture rules
 ebaaa28 Add KoboToolbox sync with manual UI trigger, validation, and sync log
 08c8656 Add Satoshi font family for clean modern typography
 dc945ef Add CLAUDE.md with project intelligence and mistakes log
