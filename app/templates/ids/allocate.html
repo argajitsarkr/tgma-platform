@@ -1,16 +1,55 @@
 {% extends "base.html" %}
 {% block title %}ID Allocation — TGMA Platform{% endblock %}
 {% block content %}
-<h1 class="page-title">ID Allocation</h1>
-<p class="page-subtitle">Generate tracking IDs for new participants. Print labels in the field using the portable printer.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="page-title mb-0">ID Allocation</h1>
+        <p class="page-subtitle mb-0">Pre-allocate tracking IDs for field workers before they go to the field.</p>
+    </div>
+</div>
+
+<!-- Workflow explainer -->
+<div class="alert mb-4" style="background:var(--tgma-accent-light);border:1px solid var(--tgma-accent);border-radius:var(--tgma-radius);padding:1rem 1.25rem;">
+    <div style="font-weight:600;color:var(--tgma-accent);margin-bottom:0.4rem;"><i class="bi bi-signpost-split"></i> Field Worker Workflow</div>
+    <div class="row g-2" style="font-size:0.85rem;color:var(--tgma-text);">
+        <div class="col-md-3">
+            <div style="background:#fff;border-radius:8px;padding:0.6rem 0.8rem;">
+                <div style="font-weight:600;color:var(--tgma-accent);">① Before Field Visit</div>
+                Supervisor allocates a batch of IDs here (e.g., 10 IDs for FW-1, West Tripura Female) and prints the label sheet.
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div style="background:#fff;border-radius:8px;padding:0.6rem 0.8rem;">
+                <div style="font-weight:600;color:var(--tgma-accent);">② Physical Labels</div>
+                Field worker takes the printed barcode sticker sheet. Each sticker goes on the consent form + sample vials for one participant.
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div style="background:#fff;border-radius:8px;padding:0.6rem 0.8rem;">
+                <div style="font-weight:600;color:var(--tgma-accent);">③ In the Field (Offline)</div>
+                Field worker scans or types the pre-printed ID into KoboCollect. No internet or platform access needed.
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div style="background:#fff;border-radius:8px;padding:0.6rem 0.8rem;">
+                <div style="font-weight:600;color:var(--tgma-accent);">④ Back at Lab</div>
+                PI clicks "Sync Now" in KoboToolbox Sync — submissions are pulled in and matched to their tracking IDs automatically.
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="row g-4">
-    <!-- Generate ID -->
-    <div class="col-lg-5">
+    <!-- Allocate Form -->
+    <div class="col-lg-4">
         <div class="tgma-card">
-            <div class="tgma-card-header">Generate Next ID</div>
+            <div class="tgma-card-header"><i class="bi bi-plus-circle"></i> Allocate IDs for Field Worker</div>
             <form method="POST" action="{{ url_for('ids.allocate') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Field Worker Name</label>
+                    <input type="text" class="form-control" name="field_worker" placeholder="e.g. Priya Das" required>
+                </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">District</label>
                     <select class="form-select" name="district" required>
@@ -20,50 +59,35 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Gender</label>
+                    <label class="form-label fw-semibold">Participant Gender</label>
                     <select class="form-select" name="gender" required>
-                        <option value="M">Male (M)</option>
                         <option value="F">Female (F)</option>
+                        <option value="M">Male (M)</option>
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Field Worker</label>
-                    <input type="text" class="form-control" name="field_worker" placeholder="Name of field worker">
+                    <label class="form-label fw-semibold">Number of IDs to allocate</label>
+                    <input type="number" class="form-control" name="count" value="10" min="1" max="50" required>
+                    <div class="form-text">Max 50 per batch. One ID per participant.</div>
                 </div>
-                <button type="submit" class="btn btn-tgma w-100"><i class="bi bi-plus-circle"></i> Generate ID</button>
+                <button type="submit" class="btn btn-tgma w-100"><i class="bi bi-printer"></i> Allocate & Print Labels</button>
             </form>
         </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        {% if category == 'success' %}
-        <div class="tgma-card mt-3 text-center" style="background:var(--tgma-accent-light);border-color:var(--tgma-accent);">
-            <div style="font-size:0.85rem;color:var(--tgma-muted);margin-bottom:0.5rem;">Generated ID</div>
-            <div style="font-size:2rem;font-weight:700;color:var(--tgma-accent);letter-spacing:0.05em;">
-                {{ message.replace('Allocated ID: ', '') }}
-            </div>
-            <div style="font-size:0.8rem;color:var(--tgma-muted);margin-top:0.5rem;">Print this label for the participant's forms and sample vials</div>
-        </div>
-        {% endif %}
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
     </div>
 
     <!-- Sequence Status -->
-    <div class="col-lg-7">
-        <div class="tgma-card">
-            <div class="tgma-card-header">Current Sequence Status</div>
+    <div class="col-lg-8">
+        <div class="tgma-card mb-4">
+            <div class="tgma-card-header"><i class="bi bi-bar-chart-steps"></i> Current Sequence Status</div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
                             <th>District</th>
                             <th>Gender</th>
-                            <th>Last Assigned</th>
+                            <th>Last Issued</th>
                             <th>Next Available</th>
-                            <th>Next ID</th>
+                            <th>Next ID Preview</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -78,9 +102,7 @@
                             <td>
                                 {% if info.last_sequence > 0 %}
                                 <code>{{ '%04d' | format(info.last_sequence) }}</code>
-                                {% else %}
-                                <span class="text-muted">—</span>
-                                {% endif %}
+                                {% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
                             <td><span class="fw-bold" style="color:var(--tgma-accent);">{{ '%04d' | format(info.next_sequence) }}</span></td>
                             <td><code>TGMA-{{ info.district }}-{{ info.gender }}-{{ '%04d' | format(info.next_sequence) }}</code></td>
@@ -91,10 +113,44 @@
             </div>
         </div>
 
-        <div class="tgma-card mt-3" style="background:var(--tgma-bg);">
-            <div style="font-size:0.85rem;color:var(--tgma-muted);">
-                <i class="bi bi-info-circle"></i>
-                <strong>Field Workflow:</strong> Convince participant &rarr; Generate ID here &rarr; Print label on portable printer &rarr; Paste on consent form, blood vial, saliva vial, and stool kit &rarr; Store in 0&deg;C cooler during transport.
+        <!-- Recent Allocations -->
+        <div class="tgma-card">
+            <div class="tgma-card-header"><i class="bi bi-clock-history"></i> Recent Allocations</div>
+            <div class="table-responsive" style="max-height:280px;overflow-y:auto;">
+                <table class="table table-hover table-sm mb-0">
+                    <thead style="position:sticky;top:0;z-index:1;">
+                        <tr>
+                            <th>Tracking ID</th>
+                            <th>Field Worker</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alloc in recent %}
+                        <tr>
+                            <td><code>{{ alloc.tracking_id }}</code></td>
+                            <td>{{ alloc.allocated_to or '—' }}</td>
+                            <td>{{ alloc.allocated_date.strftime('%d %b %Y') if alloc.allocated_date else '—' }}</td>
+                            <td>
+                                {% if alloc.status == 'used' %}
+                                <span class="badge-tgma badge-success">Used</span>
+                                {% elif alloc.status == 'allocated' %}
+                                <span class="badge-tgma badge-info">Allocated</span>
+                                {% elif alloc.status == 'returned' %}
+                                <span class="badge-tgma badge-warning">Returned</span>
+                                {% else %}
+                                <span class="badge-tgma" style="background:#F3F4F6;color:#6B7280;">Void</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-3" style="color:var(--tgma-muted);">No allocations yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

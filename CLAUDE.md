@@ -8,12 +8,15 @@ ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN
 
 ## Deployment
 - **Server**: PowerEdge R730, Ubuntu, Docker Compose at `/home/mmilab/Desktop/tgma-platform`
-- **Access**: http://192.168.1.35:8100 (LAN only, no internet)
+- **Access (LAN)**: http://192.168.1.35:8100
+- **Access (public)**: ngrok HTTPS tunnel — URL changes on restart; get current URL with `sudo docker compose logs ngrok | grep url=` or run `bash scripts/ngrok_url.sh` from the server
 - **Database**: PostgreSQL 16 in Docker, volume `tgma-platform_pgdata`
 - **Rebuild flow**: `git pull && sudo docker compose down && sudo docker compose up -d --build`
-- **Re-seed DB**: `sudo docker compose exec web python scripts/init_db.py --synthetic`
+- **Re-seed / upsert users**: `sudo docker compose exec web python scripts/init_db.py`
+- **Re-seed with synthetic data**: `sudo docker compose exec web python scripts/init_db.py --synthetic`
 - **Full reset (wipes data)**: add `-v` flag to `docker compose down`
 - **Dev machine**: Windows (Anaconda), run with `conda run -n base python`
+- **Ngrok setup (one-time)**: Sign up at ngrok.com, add `NGROK_AUTHTOKEN=<token>` to `.env` on server, then rebuild
 
 ## Build Verification
 ```bash
@@ -125,9 +128,10 @@ conda run -n base python -m pytest tests/ -v
 ### Scripts
 | File | Purpose |
 |------|---------|
-| `scripts/init_db.py` | DB init + seed users + `--synthetic` flag for ~50 test participants. **Contains real user credentials — repo must be PRIVATE.** |
+| `scripts/init_db.py` | DB init + **upsert** 5 users (update existing, create new) + `--synthetic` flag for ~50 test participants. **Contains real user credentials — repo must be PRIVATE.** |
 | `scripts/init_db.sql` | PostgreSQL extensions (pg_trgm). Mounted in Docker entrypoint. |
 | `scripts/generate_barcodes.py` | Generate Code128 barcode label PDFs using python-barcode. Supports `--ids`, `--range`, `--samples`, `--from-db`. |
+| `scripts/ngrok_url.sh` | Fetch current ngrok public URL from local ngrok API (port 4040). Run on server after deploy. |
 | `scripts/parse_kobo.py` | Utility to parse KoboToolbox form JSON and list survey fields (not committed) |
 | `scripts/test_kobo_route.py` | Dev-only smoke test for `/kobo/` route — creates in-memory DB, logs in as PI, checks 200 response. Not committed to repo. |
 
@@ -289,12 +293,13 @@ conda run -n base python -m pytest tests/ -v
 | GPS bounds | Lat: 22.9–24.5, Lon: 91.1–92.3 |
 
 ## Users
-| Username | Role | Real Person |
-|----------|------|-------------|
-| surajit_b | pi | Dr. Surajit Bhattacharjee |
-| sanchari_p | co_pi | Ms. Sanchari Pal |
-| argajit_s | bioinformatician | Mr. Argajit Sarkar |
-| field_sup | field_supervisor | TBD |
+| Username | Role | Real Person | Default Password |
+|----------|------|-------------|-----------------|
+| surajit_b | pi | Dr. Surajit Bhattacharjee | SurajitPI@2026 |
+| shib_d | co_pi | Dr. Shib Sekhar Datta | ShibCoPI@2026 |
+| sanchari_p | bioinformatician | Miss. Sanchari Pal (Project Scholar) | SanchariTGMA@2026 |
+| argajit_s | bioinformatician | Mr. Argajit Sarkar (Project Scholar) | ArgajitTGMA@2026 |
+| field_sup | field_supervisor | Field Supervisor | FieldTGMA@2026 |
 
 ## KoboToolbox Sync Strategy
 - **Trigger**: Manual only — PI/Co-PI/Bioinformatician clicks "Sync Now" in UI (`/kobo`)

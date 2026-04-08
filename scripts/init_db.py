@@ -22,23 +22,27 @@ from app.utils.helpers import generate_tracking_id, generate_sample_id
 
 
 def create_seed_users():
-    """Create the 4 default user accounts."""
+    """Create or update the 5 seed user accounts (upsert by username)."""
     users = [
-        {'username': 'surajit_b', 'email': 'sbhattacharjee@gmail.com', 'full_name': 'Dr. Surajit Bhattacharjee', 'role': 'pi', 'password': 'E*jcKFqk306T'},
-        {'username': 'sanchari_p', 'email': 'thesanchari@gmail.com', 'full_name': 'Ms. Sanchari Pal', 'role': 'co_pi', 'password': 'D&xRtB2m78Nc'},
-        {'username': 'argajit_s', 'email': 'argajit05@gmail.com', 'full_name': 'Mr. Argajit Sarkar', 'role': 'bioinformatician', 'password': 'J&nXbH5k91Yd'},
-        {'username': 'field_sup', 'email': None, 'full_name': 'Field Supervisor', 'role': 'field_supervisor', 'password': 'changeme_field_2026'},
+        {'username': 'surajit_b', 'email': 'sbhattacharjee@gmail.com', 'full_name': 'Dr. Surajit Bhattacharjee', 'role': 'pi', 'password': 'SurajitPI@2026'},
+        {'username': 'shib_d',    'email': None,                        'full_name': 'Dr. Shib Sekhar Datta',    'role': 'co_pi',            'password': 'ShibCoPI@2026'},
+        {'username': 'sanchari_p','email': 'thesanchari@gmail.com',     'full_name': 'Miss. Sanchari Pal',       'role': 'bioinformatician', 'password': 'SanchariTGMA@2026'},
+        {'username': 'argajit_s', 'email': 'argajit05@gmail.com',       'full_name': 'Mr. Argajit Sarkar',       'role': 'bioinformatician', 'password': 'ArgajitTGMA@2026'},
+        {'username': 'field_sup', 'email': None,                        'full_name': 'Field Supervisor',         'role': 'field_supervisor', 'password': 'FieldTGMA@2026'},
     ]
 
     for u in users:
         existing = User.query.filter_by(username=u['username']).first()
         if existing:
-            print(f"  User '{u['username']}' already exists, skipping.")
-            continue
-        user = User(username=u['username'], email=u['email'], full_name=u['full_name'], role=u['role'])
-        user.set_password(u['password'])
-        db.session.add(user)
-        print(f"  Created user: {u['username']} ({u['role']})")
+            existing.full_name = u['full_name']
+            existing.role = u['role']
+            existing.set_password(u['password'])
+            print(f"  Updated user: {u['username']} ({u['role']})")
+        else:
+            user = User(username=u['username'], email=u['email'], full_name=u['full_name'], role=u['role'])
+            user.set_password(u['password'])
+            db.session.add(user)
+            print(f"  Created user: {u['username']} ({u['role']})")
 
     db.session.commit()
 
@@ -291,10 +295,11 @@ def main():
             generate_synthetic_data(50)
 
         print("\nDone! Login credentials:")
-        print("  PI:              surajit_b  (Dr. Surajit Bhattacharjee)")
-        print("  Co-PI:           sanchari_p (Ms. Sanchari Pal)")
-        print("  Bioinformatician: argajit_s  (Mr. Argajit Sarkar)")
-        print("  Field Supervisor: field_sup  (password: changeme_field_2026)")
+        print("  PI:               surajit_b   Dr. Surajit Bhattacharjee  SurajitPI@2026")
+        print("  Co-PI:            shib_d      Dr. Shib Sekhar Datta      ShibCoPI@2026")
+        print("  Bioinformatician: sanchari_p  Miss. Sanchari Pal         SanchariTGMA@2026")
+        print("  Bioinformatician: argajit_s   Mr. Argajit Sarkar         ArgajitTGMA@2026")
+        print("  Field Supervisor: field_sup   Field Supervisor            FieldTGMA@2026")
 
 
 if __name__ == '__main__':

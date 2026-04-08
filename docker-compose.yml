@@ -32,6 +32,18 @@ services:
     ports:
       - "${LAN_IP:-0.0.0.0}:${WEB_PORT:-8100}:8000"
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: http web:8000 --log=stdout
+    ports:
+      - "127.0.0.1:4040:4040"
+
 volumes:
   pgdata:
   uploads:

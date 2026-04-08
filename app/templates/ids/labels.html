@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Print Labels — TGMA{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Screen: show print button */
+.print-controls { margin-bottom: 1.5rem; }
+
+/* Label grid */
+.label-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 10px;
+}
+
+.label-card {
+    border: 1.5px dashed #B7E4C7;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    text-align: center;
+    page-break-inside: avoid;
+}
+
+.label-id {
+    font-family: 'Courier New', monospace;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1B1B1B;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+
+.label-barcode-placeholder {
+    background: repeating-linear-gradient(
+        90deg,
+        #1B1B1B 0px, #1B1B1B 2px,
+        #fff 2px, #fff 4px,
+        #1B1B1B 4px, #1B1B1B 5px,
+        #fff 5px, #fff 8px,
+        #1B1B1B 8px, #1B1B1B 9px,
+        #fff 9px, #fff 12px
+    );
+    height: 36px;
+    margin: 6px 0;
+    border-radius: 2px;
+}
+
+.label-study {
+    font-size: 0.65rem;
+    color: #6B7280;
+    margin-top: 3px;
+}
+
+.label-worker {
+    font-size: 0.7rem;
+    color: #2D6A4F;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* Print styles */
+@media print {
+    .print-controls, .sidebar, .top-bar, .main-content > .top-bar,
+    nav, footer, .alert { display: none !important; }
+
+    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    .content-area { padding: 0 !important; }
+
+    body { background: #fff; }
+
+    .label-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        padding: 6px;
+    }
+
+    .label-card {
+        border: 1px dashed #aaa;
+        padding: 8px;
+    }
+
+    h2.print-title { font-size: 1rem; margin-bottom: 6px; }
+    .print-meta { font-size: 0.75rem; margin-bottom: 8px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="print-controls d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="print-title page-title mb-1">Label Sheet — {{ label_ids | length }} IDs</h2>
+        <p class="print-meta page-subtitle mb-0">
+            {% if worker %}Field Worker: <strong>{{ worker }}</strong> &nbsp;|&nbsp;{% endif %}
+            Printed: {{ today.strftime('%d %B %Y') }}
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('ids.index') }}" class="btn btn-tgma-outline me-2"><i class="bi bi-arrow-left"></i> Back</a>
+        <button onclick="window.print()" class="btn btn-tgma"><i class="bi bi-printer"></i> Print Labels</button>
+    </div>
+</div>
+
+<div class="alert mb-3" style="background:var(--tgma-accent-light);border:1px solid var(--tgma-accent);font-size:0.85rem;padding:0.6rem 1rem;">
+    <i class="bi bi-info-circle"></i>
+    <strong>Instructions for field worker:</strong>
+    Each label = one participant. Stick one label on the consent form, one on each sample vial (stool, blood, saliva), and one on the cold box bag.
+    Type the ID exactly as printed into KoboCollect — it must match <code>TGMA-XX-X-0000</code> format.
+</div>
+
+{% if label_ids %}
+<div class="label-grid">
+    {% for tid in label_ids %}
+    <div class="label-card">
+        <div class="label-id">{{ tid }}</div>
+        <div class="label-barcode-placeholder"></div>
+        <div class="label-study">TGMA — Tripura University</div>
+        {% if worker %}<div class="label-worker">{{ worker }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="tgma-card text-center py-5" style="color:var(--tgma-muted);">
+    <i class="bi bi-exclamation-circle" style="font-size:2rem;"></i>
+    <p class="mt-2 mb-0">No labels to print. Go back and allocate IDs first.</p>
+</div>
+{% endif %}
+{% endblock %}
