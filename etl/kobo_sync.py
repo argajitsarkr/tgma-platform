@@ -395,6 +395,20 @@ def _do_sync(app, triggered_by, full_sync):
                 'Set KOBO_API_URL, KOBO_API_TOKEN, KOBO_FORM_ID in .env'
             )
 
+        PLACEHOLDERS = {'your-form-asset-uid', 'your-kobo-api-token'}
+        if form_id in PLACEHOLDERS:
+            raise ValueError(
+                'KOBO_FORM_ID is not configured — still using placeholder value. '
+                'Log into kf.kobotoolbox.org, open your form, copy the asset UID '
+                'from the URL, then set KOBO_FORM_ID=<uid> in .env and restart.'
+            )
+        if token in PLACEHOLDERS:
+            raise ValueError(
+                'KOBO_API_TOKEN is not configured — still using placeholder value. '
+                'Go to kf.kobotoolbox.org Account Settings to get your API token, '
+                'then set KOBO_API_TOKEN=<token> in .env and restart.'
+            )
+
         # Determine start point
         state = load_sync_state()
         since = None if full_sync else state.get('last_sync')

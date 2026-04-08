@@ -11,6 +11,47 @@
     {% endif %}
 </div>
 
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card accent">
+            <div class="stat-icon white"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-value">{{ total_enrolled }}</div>
+            <div class="stat-label">Total Enrolled</div>
+            <div class="stat-sub">of 440 target</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-gender-ambiguous"></i></div>
+            <div class="stat-value" style="font-size:1.5rem;">M: {{ gender_counts.get('M', 0) }} / F: {{ gender_counts.get('F', 0) }}</div>
+            <div class="stat-label">Gender Split</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-geo-alt-fill"></i></div>
+            <div class="stat-value" style="font-size:1.2rem;">WT: {{ district_counts.get('WT', 0) }} &middot; ST: {{ district_counts.get('ST', 0) }} &middot; DL: {{ district_counts.get('DL', 0) }}</div>
+            <div class="stat-label">By District</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="bi bi-check2-all"></i></div>
+            <div class="stat-value">{{ complete_samples }}</div>
+            <div class="stat-label">Complete Sample Sets</div>
+            <div class="stat-sub">
+                {% if total_enrolled > 0 %}
+                <div class="progress mt-1" style="height:6px;">
+                    <div class="progress-bar" style="width:{{ (complete_samples / total_enrolled * 100) | round(0) }}%"></div>
+                </div>
+                {{ (complete_samples / total_enrolled * 100) | round(1) }}% of enrolled
+                {% else %}—{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Filters -->
 <div class="tgma-card mb-3">
     <div class="row g-2 align-items-end">

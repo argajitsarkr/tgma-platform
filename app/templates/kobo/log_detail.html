@@ -76,6 +76,23 @@
 {% if log.error_message %}
 <div class="alert alert-danger mb-4">
     <strong><i class="bi bi-exclamation-triangle"></i> Error:</strong> {{ log.error_message }}
+    {% if 'not configured' in log.error_message or 'placeholder' in log.error_message %}
+    <hr>
+    <p class="mb-1"><strong>How to fix:</strong></p>
+    <ol class="mb-0">
+        <li>Log into <code>kf.kobotoolbox.org</code></li>
+        <li>Open your form — copy the asset UID from the URL</li>
+        <li>Go to Account Settings — copy your API token</li>
+        <li>Update <code>.env</code> on the server with real values</li>
+        <li>Restart: <code>sudo docker compose restart web</code></li>
+    </ol>
+    {% elif '404' in log.error_message %}
+    <hr>
+    <p class="mb-0"><strong>Hint:</strong> 404 usually means KOBO_FORM_ID doesn't match any form on KoboToolbox. Verify the asset UID is correct.</p>
+    {% elif '401' in log.error_message or 'Unauthorized' in log.error_message %}
+    <hr>
+    <p class="mb-0"><strong>Hint:</strong> 401 means KOBO_API_TOKEN is invalid or expired. Regenerate it from KoboToolbox Account Settings.</p>
+    {% endif %}
 </div>
 {% endif %}
 

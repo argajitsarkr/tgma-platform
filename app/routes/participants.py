@@ -13,7 +13,40 @@ participants_bp = Blueprint('participants', __name__, url_prefix='/participants'
 @participants_bp.route('/')
 @login_required
 def list_participants():
-    return render_template('participants/list.html')
+    from sqlalchemy import func as sa_func
+
+    total_enrolled = Participant.query.filter(
+        Participant.enrollment_status.in_(['enrolled', 'completed'])
+    ).count()
+
+    by_gender = db.session.query(
+        Participant.gender, db.func.count(Participant.tracking_id)
+    ).filter(
+        Participant.enrollment_status.in_(['enrolled', 'completed'])
+    ).group_by(Participant.gender).all()
+    gender_counts = dict(by_gender)
+
+    by_district = db.session.query(
+        Participant.district, db.func.count(Participant.tracking_id)
+    ).filter(
+        Participant.enrollment_status.in_(['enrolled', 'completed'])
+    ).group_by(Participant.district).all()
+    district_counts = dict(by_district)
+
+    complete_sub = db.session.query(
+        Sample.tracking_id
+    ).filter(
+        Sample.collection_status == 'collected'
+    ).group_by(Sample.tracking_id).having(
+        sa_func.count(db.distinct(Sample.sample_type)) >= 6
+    ).subquery()
+    complete_samples = db.session.query(sa_func.count()).select_from(complete_sub).scalar() or 0
+
+    return render_template('participants/list.html',
+                           total_enrolled=total_enrolled,
+                           gender_counts=gender_counts,
+                           district_counts=district_counts,
+                           complete_samples=complete_samples)
 
 
 @participants_bp.route('/api/data')
