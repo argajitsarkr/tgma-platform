@@ -514,6 +514,30 @@ a:hover {
     outline: none;
 }
 
+/* Fix DataTables sort icons — force reliable font for Unicode arrows */
+table.dataTable span.dt-column-order {
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    font-size: 0.65rem;
+    opacity: 0.4;
+}
+table.dataTable thead th.dt-ordering-asc span.dt-column-order,
+table.dataTable thead th.dt-ordering-desc span.dt-column-order {
+    opacity: 0.9;
+}
+
+/* Participants table column widths */
+#participantsTable { table-layout: fixed; }
+#participantsTable th:nth-child(1) { width: 15%; }  /* Tracking ID */
+#participantsTable th:nth-child(2) { width: 16%; }  /* Name */
+#participantsTable th:nth-child(3) { width: 6%; }   /* Age */
+#participantsTable th:nth-child(4) { width: 7%; }   /* Gender */
+#participantsTable th:nth-child(5) { width: 12%; }  /* District */
+#participantsTable th:nth-child(6) { width: 8%; }   /* Lifestyle */
+#participantsTable th:nth-child(7) { width: 10%; }  /* Status */
+#participantsTable th:nth-child(8) { width: 8%; }   /* Samples */
+#participantsTable th:nth-child(9) { width: 12%; }  /* Enrolled */
+#participantsTable td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* -- Responsive -- */
 @media (max-width: 768px) {
     .sidebar { display: none; }
