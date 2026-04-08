@@ -98,15 +98,20 @@
     </div>
     <div>
         <a href="{{ url_for('ids.index') }}" class="btn btn-tgma-outline me-2"><i class="bi bi-arrow-left"></i> Back</a>
-        <button onclick="window.print()" class="btn btn-tgma"><i class="bi bi-printer"></i> Print Labels</button>
+        {% if label_ids %}
+        <a href="{{ url_for('ids.label_kit_excel', start=label_ids[0], end=label_ids[-1], worker=worker) }}"
+           class="btn btn-tgma me-2"><i class="bi bi-file-earmark-spreadsheet"></i> Download Label Kit (Excel)</a>
+        {% endif %}
+        <button onclick="window.print()" class="btn btn-tgma-outline"><i class="bi bi-printer"></i> Print Page</button>
     </div>
 </div>
 
+<!-- Label Kit info -->
 <div class="alert mb-3" style="background:var(--tgma-accent-light);border:1px solid var(--tgma-accent);font-size:0.85rem;padding:0.6rem 1rem;">
     <i class="bi bi-info-circle"></i>
-    <strong>Instructions for field worker:</strong>
-    Each label = one participant. Stick one label on the consent form, one on each sample vial (stool, blood, saliva), and one on the cold box bag.
-    Type the ID exactly as printed into KoboCollect — it must match <code>TGMA-XX-X-0000</code> format.
+    <strong>Label Kit (12 labels per participant):</strong>
+    3 Blood vials + 1 Fecal tube + 4 Saliva vials (timed) + 1 Participant folder + 3 Documents (Consent, Info Sheet, Questionnaire).
+    <br><strong>Seznik Printer:</strong> Download the Excel file → open in Seznik app → "Print Excel" → map columns to your 40x30mm label template.
 </div>
 
 {% if label_ids %}
