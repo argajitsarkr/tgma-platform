@@ -202,3 +202,18 @@ def edit(tracking_id):
     db.session.commit()
     flash('Participant updated.', 'success')
     return redirect(url_for('participants.detail', tracking_id=tracking_id))
+
+
+@participants_bp.route('/<tracking_id>/delete', methods=['POST'])
+@login_required
+@role_required('pi', 'co_pi', 'bioinformatician')
+def delete(tracking_id):
+    participant = db.session.get(Participant, tracking_id)
+    if not participant:
+        flash('Participant not found.', 'danger')
+        return redirect(url_for('participants.list_participants'))
+
+    db.session.delete(participant)  # cascades to samples, hormones, anthro, etc.
+    db.session.commit()
+    flash(f'Participant {tracking_id} and all related records deleted.', 'success')
+    return redirect(url_for('participants.list_participants'))

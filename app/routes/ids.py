@@ -50,9 +50,35 @@ def index():
             }
 
     # Recent allocations
-    recent = IdAllocation.query.order_by(IdAllocation.created_at.desc()).limit(30).all()
+    recent = IdAllocation.query.order_by(IdAllocation.created_at.desc()).limit(50).all()
 
-    return render_template('ids/allocate.html', summaries=summaries, recent=recent)
+    # Group consecutive allocations into batches by (worker, date, district, gender)
+    batches = []
+    for a in recent:
+        parts = a.tracking_id.split('-')
+        if len(parts) != 4:
+            continue
+        d, g = parts[1], parts[2]
+        key = (a.allocated_to, a.allocated_date, d, g)
+        if batches and batches[-1]['key'] == key:
+            batches[-1]['ids'].append(a.tracking_id)
+        else:
+            batches.append({
+                'key': key,
+                'worker': a.allocated_to,
+                'date': a.allocated_date,
+                'district': d,
+                'gender': g,
+                'ids': [a.tracking_id],
+            })
+    for b in batches:
+        b['ids'].sort()
+        b['start'] = b['ids'][0]
+        b['end'] = b['ids'][-1]
+        b['count'] = len(b['ids'])
+
+    return render_template('ids/allocate.html', summaries=summaries,
+                           recent=recent, batches=batches)
 
 
 @ids_bp.route('/allocate', methods=['POST'])

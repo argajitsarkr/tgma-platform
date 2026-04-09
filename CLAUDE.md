@@ -14,6 +14,7 @@ ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN
 - **Rebuild flow**: `git pull && sudo docker compose down && sudo docker compose up -d --build`
 - **Re-seed / upsert users**: `sudo docker compose exec web python scripts/init_db.py`
 - **Re-seed with synthetic data**: `sudo docker compose exec web python scripts/init_db.py --synthetic`
+- **Wipe demo data (keeps users + schema)**: `sudo docker compose exec web python scripts/wipe_data.py --confirm` — deletes all participants (cascades), ID allocations, and KoboSync logs
 - **Full reset (wipes data)**: add `-v` flag to `docker compose down`
 - **Dev machine**: Windows (Anaconda), run with `conda run -n base python`
 - **Ngrok setup (one-time)**: Sign up at ngrok.com, add `NGROK_AUTHTOKEN=<token>` to `.env` on server, then rebuild
@@ -57,7 +58,7 @@ conda run -n base python -m pytest tests/ -v
 |------|-----------|--------------|
 | `app/routes/__init__.py` | — | Package init |
 | `app/routes/dashboard.py` | `/` | Stats cards, enrollment progress, district breakdown charts |
-| `app/routes/participants.py` | `/participants` | CRUD, server-side DataTables API (`api_data`), detail view |
+| `app/routes/participants.py` | `/participants` | CRUD, server-side DataTables API (`api_data`), detail, edit (POST), delete (POST) — edit/delete gated to PI/Co-PI/Bioinformatician; delete cascades to all child records |
 | `app/routes/samples.py` | `/samples` | Register, tracker, freezer map, dispatch, detail; ALLOWED_SAMPLE_TYPES = ['stool', 'saliva_cortisol'] |
 | `app/routes/diagnostics.py` | `/diagnostics` | Blood report PDF upload (NOT Excel import) |
 | `app/routes/ids.py` | `/ids` | Bulk ID allocation per district |
@@ -129,6 +130,7 @@ conda run -n base python -m pytest tests/ -v
 | File | Purpose |
 |------|---------|
 | `scripts/init_db.py` | DB init + **upsert** 5 users (update existing, create new) + `--synthetic` flag for ~50 test participants. **Contains real user credentials — repo must be PRIVATE.** |
+| `scripts/wipe_data.py` | One-shot reset — deletes all participants (cascades), ID allocations, and KoboSync logs. Requires `--confirm` flag. Preserves users and schema. |
 | `scripts/init_db.sql` | PostgreSQL extensions (pg_trgm). Mounted in Docker entrypoint. |
 | `scripts/generate_barcodes.py` | Generate Code128 barcode label PDFs using python-barcode. Supports `--ids`, `--range`, `--samples`, `--from-db`. |
 | `scripts/ngrok_url.sh` | Fetch current ngrok public URL from local ngrok API (port 4040). Run on server after deploy. |
@@ -231,6 +233,11 @@ conda run -n base python -m pytest tests/ -v
 **What happened**: `run_sync()` used `with app.app_context():` unconditionally. When called from a Flask route (which already has an app context), this created a nested context. On exit, it popped the outer request context too, causing the returned `sync_log` object to become detached from the session → 500 Internal Server Error.
 **Fix**: Split into `_do_sync()` (core logic, no context management) and `run_sync()` (wrapper that checks `flask.has_app_context()` — if already in context, calls directly; if CLI, pushes a new one). Also wrapped the route handler in try/except so errors flash a message instead of returning a raw 500.
 **Rule**: Never unconditionally push `app.app_context()` in functions that may be called from both CLI and Flask routes. Use `flask.has_app_context()` to detect if a context already exists. Always wrap route-triggered operations in try/except to show user-friendly error messages.
+
+### 19. `Query.delete()` bypasses ORM cascade rules
+**What happened**: When writing the `wipe_data.py` reset script, the obvious-looking `Participant.query.delete()` would have left orphaned rows in `samples`, `hormone_results`, `anthropometrics`, etc. SQLAlchemy `Query.delete()` is a bulk SQL DELETE that does NOT trigger Python-side cascade rules defined on relationships.
+**Fix**: Iterate `Participant.query.all()` and call `db.session.delete(p)` per row so the `cascade='all, delete-orphan'` paths in `app/models/participant.py:80-95` actually fire.
+**Rule**: Whenever a model has `cascade='all, delete-orphan'` relationships, never use `Query.delete()` to remove rows — always iterate and `db.session.delete()` per object. `Query.delete()` is fine only for tables with no Python-side cascades (e.g., `IdAllocation`, `KoboSyncLog`).
 
 ## Architecture Rules
 

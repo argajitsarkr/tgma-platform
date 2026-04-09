@@ -113,40 +113,45 @@
             </div>
         </div>
 
-        <!-- Recent Allocations -->
+        <!-- Recent Batches -->
         <div class="tgma-card">
-            <div class="tgma-card-header"><i class="bi bi-clock-history"></i> Recent Allocations</div>
-            <div class="table-responsive" style="max-height:280px;overflow-y:auto;">
+            <div class="tgma-card-header"><i class="bi bi-clock-history"></i> Recent Batches — Re-print Labels</div>
+            <div class="table-responsive" style="max-height:340px;overflow-y:auto;">
                 <table class="table table-hover table-sm mb-0">
-                    <thead style="position:sticky;top:0;z-index:1;">
+                    <thead style="position:sticky;top:0;z-index:1;background:#fff;">
                         <tr>
-                            <th>Tracking ID</th>
+                            <th>Range</th>
+                            <th>Count</th>
+                            <th>District</th>
+                            <th>Gender</th>
                             <th>Field Worker</th>
                             <th>Date</th>
-                            <th>Status</th>
+                            <th>Labels</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for alloc in recent %}
+                        {% for b in batches %}
                         <tr>
-                            <td><code>{{ alloc.tracking_id }}</code></td>
-                            <td>{{ alloc.allocated_to or '—' }}</td>
-                            <td>{{ alloc.allocated_date.strftime('%d %b %Y') if alloc.allocated_date else '—' }}</td>
+                            <td><code>{{ b.start }}</code>{% if b.start != b.end %} → <code>{{ b.end }}</code>{% endif %}</td>
+                            <td>{{ b.count }}</td>
+                            <td>{{ b.district }}</td>
+                            <td>{{ b.gender }}</td>
+                            <td>{{ b.worker or '—' }}</td>
+                            <td>{{ b.date.strftime('%d %b %Y') if b.date else '—' }}</td>
                             <td>
-                                {% if alloc.status == 'used' %}
-                                <span class="badge-tgma badge-success">Used</span>
-                                {% elif alloc.status == 'allocated' %}
-                                <span class="badge-tgma badge-info">Allocated</span>
-                                {% elif alloc.status == 'returned' %}
-                                <span class="badge-tgma badge-warning">Returned</span>
-                                {% else %}
-                                <span class="badge-tgma" style="background:#F3F4F6;color:#6B7280;">Void</span>
-                                {% endif %}
+                                <a href="{{ url_for('ids.print_labels', start=b.start, end=b.end, worker=b.worker or '') }}"
+                                   class="btn btn-tgma-outline btn-sm" title="Print label sheet">
+                                    <i class="bi bi-printer"></i>
+                                </a>
+                                <a href="{{ url_for('ids.label_kit_excel', start=b.start, end=b.end, worker=b.worker or '') }}"
+                                   class="btn btn-tgma btn-sm" title="Download 12-label Seznik kit">
+                                    <i class="bi bi-file-earmark-spreadsheet"></i> Kit
+                                </a>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center py-3" style="color:var(--tgma-muted);">No allocations yet</td>
+                            <td colspan="7" class="text-center py-3" style="color:var(--tgma-muted);">No allocations yet</td>
                         </tr>
                         {% endfor %}
                     </tbody>
