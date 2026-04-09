@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Documents — TGMA Platform{% endblock %}
+{% block content %}
+<h1 class="page-title">Document Vault</h1>
+<p class="page-subtitle">Per-participant storage for scanned consent/assent forms, information sheets, questionnaires, photos, and blood reports.</p>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Total Documents</div>
+            <div class="stat-value">{{ total_all }}</div>
+            <div class="stat-hint">Blood reports + uploaded forms/images</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Participants With Any Docs</div>
+            <div class="stat-value">{{ with_any }}</div>
+            <div class="stat-hint">out of {{ rows | length }} enrolled</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Participants Without Docs</div>
+            <div class="stat-value">{{ rows | length - with_any }}</div>
+            <div class="stat-hint">Need follow-up</div>
+        </div>
+    </div>
+</div>
+
+<div class="tgma-card">
+    <div class="tgma-card-header">
+        <span><i class="bi bi-folder-fill"></i> Participant Vaults</span>
+        <input type="search" id="docSearch" class="form-control form-control-sm" style="max-width:260px;"
+               placeholder="Search by ID or name...">
+    </div>
+    <div class="table-responsive" style="max-height:70vh;overflow-y:auto;">
+        <table class="table table-hover mb-0" id="docsIndexTable">
+            <thead style="position:sticky;top:0;background:#fff;z-index:1;">
+                <tr>
+                    <th>Tracking ID</th>
+                    <th>Name</th>
+                    <th>District</th>
+                    <th>Gender</th>
+                    <th>Blood Reports</th>
+                    <th>Other Docs</th>
+                    <th>Total</th>
+                    <th>Open Vault</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr data-search="{{ (row.p.tracking_id ~ ' ' ~ (row.p.full_name or '')) | lower }}">
+                    <td><code>{{ row.p.tracking_id }}</code></td>
+                    <td>{{ row.p.full_name or '—' }}</td>
+                    <td>{{ row.p.display_district }}</td>
+                    <td>{{ row.p.gender }}</td>
+                    <td>
+                        {% if row.blood_reports %}
+                        <span class="badge-tgma badge-info">{{ row.blood_reports }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.other_docs %}
+                        <span class="badge-tgma badge-success">{{ row.other_docs }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.total %}
+                        <strong>{{ row.total }}</strong>
+                        {% else %}
+                        <span class="text-muted">0</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('documents.vault', tracking_id=row.p.tracking_id) }}"
+                           class="btn btn-tgma btn-sm">
+                            <i class="bi bi-folder2-open"></i> Open
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center py-4 text-muted">No participants enrolled yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+(function() {
+    var input = document.getElementById('docSearch');
+    var rows = document.querySelectorAll('#docsIndexTable tbody tr[data-search]');
+    if (!input) return;
+    input.addEventListener('input', function() {
+        var q = this.value.trim().toLowerCase();
+        rows.forEach(function(tr) {
+            tr.style.display = (!q || tr.dataset.search.indexOf(q) !== -1) ? '' : 'none';
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -51,7 +51,7 @@ conda run -n base python -m pytest tests/ -v
 | `app/models/survey.py` | `lifestyle_data`, `environment_ses` — diet, activity, SES data from KoboToolbox |
 | `app/models/sample.py` | `samples`, `sample_shipments` — freezer positions (UNIQUE constraint), chain of custody |
 | `app/models/results.py` | `hormone_results`, `sequencing_results`, `id_allocations` — HOMA-IR, TG/HDL computed props |
-| `app/models/admin.py` | `audit_log`, `blood_reports`, `kobo_sync_log` — PDF upload storage for diagnostics + sync run history |
+| `app/models/admin.py` | `audit_log`, `blood_reports`, `kobo_sync_log`, `participant_documents` — PDF upload storage for diagnostics + sync run history + per-participant scanned forms/photos |
 
 ### Route Blueprints (9 files)
 | File | URL Prefix | Key Features |
@@ -64,6 +64,7 @@ conda run -n base python -m pytest tests/ -v
 | `app/routes/ids.py` | `/ids` | Bulk ID allocation per district |
 | `app/routes/quality.py` | `/quality` | GPS bounds check, outlier detection (|Z|>3), duplicates, missing data, incomplete sample sets |
 | `app/routes/kobo.py` | `/kobo` | Manual "Sync Now" button, full re-sync, sync log history, per-run detail view. Restricted to PI/Co-PI/Bioinformatician. |
+| `app/routes/documents.py` | `/documents` | Per-participant document vault — upload/view/download/delete scanned consent/assent/info-sheet/questionnaire forms and photos. Merges read-only `BloodReport` rows into the same view. Upload + delete gated to PI/Co-PI/Bioinformatician. Path-traversal guard via `validate_tracking_id()`. Self-healing `_ensure_table()` for first deploy. |
 | `app/routes/ml.py` | `/ml` | Placeholder for ML pipeline status |
 | `app/routes/reports.py` | `/reports` | ICMR progress report, export-ready |
 
@@ -88,6 +89,8 @@ conda run -n base python -m pytest tests/ -v
 | `app/templates/reports/icmr_progress.html` | ICMR progress report template |
 | `app/templates/kobo/sync.html` | KoboToolbox sync dashboard — Sync Now / Full Re-sync buttons, sync history table, latest run details preview |
 | `app/templates/kobo/log_detail.html` | Per-run detail view — stat cards, filterable submission table (new/updated/skipped/error), error messages |
+| `app/templates/documents/index.html` | Document vault landing — participant list with blood-report + other-doc counts, client-side search |
+| `app/templates/documents/vault.html` | Per-participant vault — role-gated upload form, grouped cards per doc_type, merged blood-report section |
 
 ### Static Assets
 | File | Notes |
@@ -239,6 +242,11 @@ conda run -n base python -m pytest tests/ -v
 **Fix**: Iterate `Participant.query.all()` and call `db.session.delete(p)` per row so the `cascade='all, delete-orphan'` paths in `app/models/participant.py:80-95` actually fire.
 **Rule**: Whenever a model has `cascade='all, delete-orphan'` relationships, never use `Query.delete()` to remove rows — always iterate and `db.session.delete()` per object. `Query.delete()` is fine only for tables with no Python-side cascades (e.g., `IdAllocation`, `KoboSyncLog`).
 
+### 20. URL path segments joined into filesystem paths without validation
+**What happened**: When building the Document Vault upload route, `tracking_id` flows from a URL path parameter straight into `os.path.join(UPLOAD_FOLDER, 'participants', tracking_id, doc_type)`. Even though Flask route converters give you a string, nothing stops a caller from sending a percent-encoded `../` sequence that `os.path.join` will happily normalize into an escape from the uploads volume.
+**Fix**: Call `validate_tracking_id()` from `app/utils/helpers.py` at the top of every route that uses a `tracking_id` to build a filesystem path. The regex `^TGMA-(WT|ST|DL)-(M|F)-(\d{4})$` rejects anything with slashes, dots, or percent-encoded escapes.
+**Rule**: Never concatenate a URL path parameter into a filesystem path without validating it against a strict regex first. Apply this to *any* user-controlled string used in `os.path.join`/`open`/`send_file`, not just tracking IDs. Also cascade-delete orphaned files from disk in wipe scripts — DB cascade does not clean up the filesystem (see `scripts/wipe_data.py` which `shutil.rmtree`s the `participants/` upload subtree).
+
 ## Architecture Rules
 
 ### DO
@@ -254,7 +262,8 @@ conda run -n base python -m pytest tests/ -v
 - Design ETL scripts as importable modules with a public function + thin CLI wrapper
 - In upsert logic, only overwrite with non-NULL values (preserve existing data)
 - Skip creating related records if ALL fields are NULL (optional empty sections)
-- Gate admin features (sync, ID allocation) with `@role_required('pi', 'co_pi', 'bioinformatician')`
+- Gate admin features (sync, ID allocation, document uploads/deletes) with `@role_required('pi', 'co_pi', 'bioinformatician')`
+- Always call `validate_tracking_id()` from `app/utils/helpers.py` before joining a `tracking_id` into a filesystem path — defense against path traversal via URL segments
 - Test with `conda run -n base python -m pytest tests/ -v` on Windows dev machine
 - Commit with `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Documents — {{ p.tracking_id }} — TGMA Platform{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-folder-fill"></i> {{ p.tracking_id }}</h4>
+        <span class="text-muted">{{ p.full_name }}</span>
+        <span class="badge bg-{{ 'primary' if p.enrollment_status == 'enrolled' else 'success' if p.enrollment_status == 'completed' else 'warning' }} ms-2">
+            {{ p.enrollment_status }}
+        </span>
+        <span class="badge-tgma ms-2">{{ p.display_district }}</span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('participants.detail', tracking_id=p.tracking_id) }}" class="btn btn-tgma-outline btn-sm">
+            <i class="bi bi-person"></i> View Participant
+        </a>
+        <a href="{{ url_for('documents.index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Documents
+        </a>
+    </div>
+</div>
+
+{% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+<!-- Upload card -->
+<div class="tgma-card mb-4">
+    <div class="tgma-card-header"><i class="bi bi-cloud-upload"></i> Upload New Document</div>
+    <div class="p-3">
+        <form method="POST"
+              action="{{ url_for('documents.upload', tracking_id=p.tracking_id) }}"
+              enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Document Type</label>
+                    <select name="doc_type" class="form-select form-select-sm" required>
+                        {% for key, label in doc_type_labels.items() %}
+                        <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">File</label>
+                    <input type="file" name="file" class="form-control form-control-sm"
+                           accept=".pdf,.jpg,.jpeg,.png" required>
+                    <small class="text-muted">Max 50 MB. PDF, JPG, or PNG only.</small>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-tgma btn-sm w-100">
+                        <i class="bi bi-upload"></i> Upload
+                    </button>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-semibold">Notes (optional)</label>
+                    <input type="text" name="notes" class="form-control form-control-sm"
+                           placeholder="e.g., Parent signed in Bengali, or scan quality note">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Document groups -->
+{% for doc_type, label in doc_type_labels.items() %}
+{% set items = grouped.get(doc_type, []) %}
+<div class="tgma-card mb-3">
+    <div class="tgma-card-header">
+        <span><i class="bi {{ doc_type_icons.get(doc_type, 'bi-file-earmark') }}"></i> {{ label }}</span>
+        <span class="badge-tgma {{ 'badge-success' if items else '' }}">{{ items | length }} file{{ 's' if items | length != 1 }}</span>
+    </div>
+    {% if items %}
+    <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Size</th>
+                    <th>Uploaded By</th>
+                    <th>Uploaded At</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in items %}
+                <tr>
+                    <td><span title="{{ d.filename }}">{{ d.original_filename }}</span></td>
+                    <td>{{ human_size(d.file_size) }}</td>
+                    <td>{{ d.uploaded_by }}</td>
+                    <td>{{ d.uploaded_at.strftime('%d %b %Y %H:%M') if d.uploaded_at else '—' }}</td>
+                    <td class="text-muted small">{{ d.notes or '—' }}</td>
+                    <td class="text-nowrap">
+                        <a href="{{ url_for('documents.view', doc_id=d.id) }}" target="_blank"
+                           class="btn btn-sm btn-tgma-outline" title="View">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{{ url_for('documents.download', doc_id=d.id) }}"
+                           class="btn btn-sm btn-tgma-outline" title="Download">
+                            <i class="bi bi-download"></i>
+                        </a>
+                        {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" title="Delete"
+                                data-bs-toggle="modal" data-bs-target="#delDoc{{ d.id }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        <!-- Delete modal -->
+                        <div class="modal fade" id="delDoc{{ d.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle"></i> Confirm Delete</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        Delete <code>{{ d.original_filename }}</code>? The file will be removed from disk permanently.
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                        <form method="POST" action="{{ url_for('documents.delete', doc_id=d.id) }}" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Delete</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-3 text-muted small">No {{ label | lower }} uploaded yet.</div>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Blood Reports (merged from legacy table) -->
+<div class="tgma-card mb-3">
+    <div class="tgma-card-header">
+        <span><i class="bi bi-file-earmark-medical-fill"></i> Blood Report <small class="text-muted">(from Diagnostics)</small></span>
+        <span class="badge-tgma {{ 'badge-success' if blood_reports else '' }}">{{ blood_reports | length }} file{{ 's' if blood_reports | length != 1 }}</span>
+    </div>
+    {% if blood_reports %}
+    <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Uploaded By</th>
+                    <th>Uploaded At</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in blood_reports %}
+                <tr>
+                    <td>{{ r.original_filename }}</td>
+                    <td>{{ r.uploaded_by }}</td>
+                    <td>{{ r.uploaded_at.strftime('%d %b %Y %H:%M') if r.uploaded_at else '—' }}</td>
+                    <td class="text-muted small">{{ r.notes or '—' }}</td>
+                    <td class="text-nowrap">
+                        <a href="{{ url_for('diagnostics.view_report', report_id=r.id) }}" target="_blank"
+                           class="btn btn-sm btn-tgma-outline" title="View">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{{ url_for('diagnostics.download_report', report_id=r.id) }}"
+                           class="btn btn-sm btn-tgma-outline" title="Download">
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-3 text-muted small">
+        No blood reports uploaded yet.
+        <a href="{{ url_for('diagnostics.index') }}">Go to Blood Reports page</a> to upload one.
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

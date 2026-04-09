@@ -93,3 +93,35 @@ class BloodReport(db.Model):
     notes = db.Column(db.Text, nullable=True)
 
     participant = db.relationship('Participant', backref=db.backref('blood_reports', lazy='dynamic'))
+
+
+class ParticipantDocument(db.Model):
+    """Scanned forms, photos, and other per-participant documents stored on disk.
+
+    Folder layout on server:
+        {UPLOAD_FOLDER}/participants/{tracking_id}/{doc_type}/{timestamp}_{secure_name}
+
+    Blood reports remain in their own `blood_reports` table and folder — the
+    vault UI merges both tables read-only for display.
+    """
+    __tablename__ = 'participant_documents'
+
+    DOC_TYPES = ('consent', 'assent', 'information_sheet', 'questionnaire', 'image', 'other')
+
+    id = db.Column(db.Integer, primary_key=True)
+    tracking_id = db.Column(db.String(20),
+                            db.ForeignKey('participants.tracking_id', ondelete='CASCADE'),
+                            nullable=False, index=True)
+    doc_type = db.Column(db.String(32), nullable=False)  # one of DOC_TYPES
+    filename = db.Column(db.String(255), nullable=False)          # stored filename (timestamped)
+    original_filename = db.Column(db.String(255), nullable=False)  # as uploaded by user
+    file_path = db.Column(db.String(500), nullable=False)         # absolute path inside container
+    file_size = db.Column(db.Integer, nullable=True)              # bytes
+    mime_type = db.Column(db.String(80), nullable=True)           # 'application/pdf', 'image/jpeg', etc.
+    uploaded_by = db.Column(db.String(80), nullable=False)
+    uploaded_at = db.Column(db.DateTime, server_default=db.func.now())
+    notes = db.Column(db.Text, nullable=True)
+
+    participant = db.relationship('Participant',
+                                  backref=db.backref('documents', lazy='dynamic',
+                                                     cascade='all, delete-orphan'))

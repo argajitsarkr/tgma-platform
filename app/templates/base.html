@@ -25,6 +25,7 @@
         <li><a href="{{ url_for('participants.list_participants') }}" class="{{ 'active' if request.blueprint == 'participants' }}"><i class="bi bi-people-fill"></i> Participants</a></li>
         <li><a href="{{ url_for('samples.tracker') }}" class="{{ 'active' if request.blueprint == 'samples' }}"><i class="bi bi-droplet-fill"></i> Samples</a></li>
         <li><a href="{{ url_for('diagnostics.index') }}" class="{{ 'active' if request.blueprint == 'diagnostics' }}"><i class="bi bi-file-earmark-medical-fill"></i> Blood Reports</a></li>
+        <li><a href="{{ url_for('documents.index') }}" class="{{ 'active' if request.blueprint == 'documents' }}"><i class="bi bi-folder-fill"></i> Documents</a></li>
         <li><a href="{{ url_for('ids.index') }}" class="{{ 'active' if request.blueprint == 'ids' }}"><i class="bi bi-fingerprint"></i> ID Allocation</a></li>
         <li><a href="{{ url_for('quality.dashboard') }}" class="{{ 'active' if request.blueprint == 'quality' }}"><i class="bi bi-shield-check"></i> Data Quality</a></li>
     </ul>
