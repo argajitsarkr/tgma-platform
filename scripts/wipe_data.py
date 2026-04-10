@@ -20,6 +20,10 @@ import os
 import shutil
 import sys
 
+# Add project root to path so `from app import ...` works when this script is
+# run directly (e.g., `python scripts/wipe_data.py` inside the container).
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app import create_app
 from app.extensions import db
 from app.models import Participant, IdAllocation, KoboSyncLog
