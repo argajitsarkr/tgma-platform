@@ -4,7 +4,7 @@
 TGMA (Tripura Gut Microbiome in Adolescents) — Flask 3.1 research data management platform.
 ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN-only, Docker deployment.
 
-**Status (March 2026)**: Platform is **feature-complete**. All 60+ source files built, 44 tests passing, Docker deployment ready. KoboToolbox sync with manual UI trigger operational.
+**Status (April 2026)**: Platform is **feature-complete**. 65+ source files, 44 tests passing, Docker deployment ready. Features: KoboToolbox sync, participant edit/delete UI, demo-data wipe script, label-kit batched reprint (Seznik thermal printer), per-participant Document Vault (consent/assent/info-sheet/questionnaire/photos, PDF+JPG+PNG, role-gated upload/delete).
 
 ## Deployment
 - **Server**: PowerEdge R730, Ubuntu, Docker Compose at `/home/mmilab/Desktop/tgma-platform`
@@ -37,7 +37,7 @@ conda run -n base python -m pytest tests/ -v
 | `config.py` | DevelopmentConfig / ProductionConfig / TestingConfig; study params (TARGET_ENROLLMENT=440, TARGET_SAMPLES_YEAR1=160, SEQUENCING_BATCH_SIZE=32); KOBO_API_URL config |
 | `requirements.txt` | All Python deps (Flask 3.1, SQLAlchemy, pandas, python-barcode, gunicorn, etc.) |
 | `.env.example` | Template for environment variables (DB, Kobo, upload paths) |
-| `app/__init__.py` | App factory — registers all 9 blueprints (incl. kobo), extensions, context processor |
+| `app/__init__.py` | App factory — registers all 10 blueprints (incl. kobo, documents), extensions, context processor |
 | `app/extensions.py` | SQLAlchemy, Migrate, LoginManager, CSRFProtect |
 | `app/auth.py` | Login/logout blueprint, Flask-Login user_loader |
 
@@ -53,7 +53,7 @@ conda run -n base python -m pytest tests/ -v
 | `app/models/results.py` | `hormone_results`, `sequencing_results`, `id_allocations` — HOMA-IR, TG/HDL computed props |
 | `app/models/admin.py` | `audit_log`, `blood_reports`, `kobo_sync_log`, `participant_documents` — PDF upload storage for diagnostics + sync run history + per-participant scanned forms/photos |
 
-### Route Blueprints (9 files)
+### Route Blueprints (10 files)
 | File | URL Prefix | Key Features |
 |------|-----------|--------------|
 | `app/routes/__init__.py` | — | Package init |
@@ -61,21 +61,21 @@ conda run -n base python -m pytest tests/ -v
 | `app/routes/participants.py` | `/participants` | CRUD, server-side DataTables API (`api_data`), detail, edit (POST), delete (POST) — edit/delete gated to PI/Co-PI/Bioinformatician; delete cascades to all child records |
 | `app/routes/samples.py` | `/samples` | Register, tracker, freezer map, dispatch, detail; ALLOWED_SAMPLE_TYPES = ['stool', 'saliva_cortisol'] |
 | `app/routes/diagnostics.py` | `/diagnostics` | Blood report PDF upload (NOT Excel import) |
-| `app/routes/ids.py` | `/ids` | Bulk ID allocation per district |
+| `app/routes/ids.py` | `/ids` | Bulk ID allocation per district; groups recent allocations into batches by (worker, date, district, gender); each batch row has re-print and label-kit Excel download buttons for the Seznik thermal printer |
 | `app/routes/quality.py` | `/quality` | GPS bounds check, outlier detection (|Z|>3), duplicates, missing data, incomplete sample sets |
 | `app/routes/kobo.py` | `/kobo` | Manual "Sync Now" button, full re-sync, sync log history, per-run detail view. Restricted to PI/Co-PI/Bioinformatician. |
 | `app/routes/documents.py` | `/documents` | Per-participant document vault — upload/view/download/delete scanned consent/assent/info-sheet/questionnaire forms and photos. Merges read-only `BloodReport` rows into the same view. Upload + delete gated to PI/Co-PI/Bioinformatician. Path-traversal guard via `validate_tracking_id()`. Self-healing `_ensure_table()` for first deploy. |
 | `app/routes/ml.py` | `/ml` | Placeholder for ML pipeline status |
 | `app/routes/reports.py` | `/reports` | ICMR progress report, export-ready |
 
-### Templates (18 files)
+### Templates (20 files)
 | File | Notes |
 |------|-------|
 | `app/templates/base.html` | Sidebar layout, Satoshi font, Bootstrap 5, DataTables, Chart.js — all local assets. Sidebar has "Data" section with KoboToolbox Sync link (role-gated). |
 | `app/templates/login.html` | Centered login card |
 | `app/templates/dashboard.html` | Stat cards, enrollment chart, district pie |
 | `app/templates/participants/list.html` | Server-side DataTables with district/gender/status/lifestyle filters |
-| `app/templates/participants/detail.html` | Tabbed view: demographics, clinical, samples, surveys |
+| `app/templates/participants/detail.html` | Tabbed view: demographics, clinical, samples, surveys. Header has role-gated Edit (Bootstrap collapse form) and Delete (confirmation modal) buttons + Documents vault shortcut. |
 | `app/templates/samples/tracker.html` | Sample pipeline overview |
 | `app/templates/samples/register.html` | New sample form |
 | `app/templates/samples/detail.html` | Single sample view |
@@ -133,7 +133,7 @@ conda run -n base python -m pytest tests/ -v
 | File | Purpose |
 |------|---------|
 | `scripts/init_db.py` | DB init + **upsert** 5 users (update existing, create new) + `--synthetic` flag for ~50 test participants. **Contains real user credentials — repo must be PRIVATE.** |
-| `scripts/wipe_data.py` | One-shot reset — deletes all participants (cascades), ID allocations, and KoboSync logs. Requires `--confirm` flag. Preserves users and schema. |
+| `scripts/wipe_data.py` | One-shot reset — deletes all participants (cascades), ID allocations, and KoboSync logs. Requires `--confirm` flag. Preserves users and schema. Also removes `{UPLOAD_FOLDER}/participants/` subtree from disk; `blood_reports/` is preserved. |
 | `scripts/init_db.sql` | PostgreSQL extensions (pg_trgm). Mounted in Docker entrypoint. |
 | `scripts/generate_barcodes.py` | Generate Code128 barcode label PDFs using python-barcode. Supports `--ids`, `--range`, `--samples`, `--from-db`. |
 | `scripts/ngrok_url.sh` | Fetch current ngrok public URL from local ngrok API (port 4040). Run on server after deploy. |
@@ -247,6 +247,11 @@ conda run -n base python -m pytest tests/ -v
 **Fix**: Call `validate_tracking_id()` from `app/utils/helpers.py` at the top of every route that uses a `tracking_id` to build a filesystem path. The regex `^TGMA-(WT|ST|DL)-(M|F)-(\d{4})$` rejects anything with slashes, dots, or percent-encoded escapes.
 **Rule**: Never concatenate a URL path parameter into a filesystem path without validating it against a strict regex first. Apply this to *any* user-controlled string used in `os.path.join`/`open`/`send_file`, not just tracking IDs. Also cascade-delete orphaned files from disk in wipe scripts — DB cascade does not clean up the filesystem (see `scripts/wipe_data.py` which `shutil.rmtree`s the `participants/` upload subtree).
 
+### 21. `scripts/` not in `sys.path` when run inside Docker container
+**What happened**: `docker compose exec web python scripts/wipe_data.py` raised `ModuleNotFoundError: No module named 'app'` because the script lives at `/app/scripts/wipe_data.py` and Python looks for `app` relative to the script directory (`/app/scripts/`), not the working directory (`/app/`).
+**Fix**: Add `sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))` at the top of the script — identical to the pattern in `scripts/init_db.py:14-15`.
+**Rule**: Every script in `scripts/` that imports from the `app` package must include this `sys.path.insert` line. Use `scripts/init_db.py` as the reference template.
+
 ## Architecture Rules
 
 ### DO
@@ -331,21 +336,18 @@ conda run -n base python -m pytest tests/ -v
 - **State file**: `etl/.kobo_sync_state.json` stores last sync timestamp for incremental mode
 - **KoboToolbox behavior**: Only fully submitted forms reach the server. Drafts stay on the phone. Field workers may skip optional sections.
 
-## Git History (as of March 2026)
+## Git History (as of April 2026)
 ```
+4c72f01 Fix wipe_data.py ModuleNotFoundError: add project root to sys.path
+24171ac Add per-participant Document Vault for scanned forms and photos
+0615b3e Add participant edit/delete UI, demo-data wipe script, and batched label-kit access
+6a08b2f Add Label Kit Excel generator for Seznik thermal printer workflow
+8b01ceb Fix DataTables sort icon rendering and participants table column widths
+4756173 Add participant stat cards and fix KoboSync placeholder credential error
+45479c2 Add ngrok public tunnel, 5-user upsert, and label sheet for field worker workflow
+c27ba99 Update CLAUDE.md: mistakes #17-18, ETL split pattern, git history
 0173610 Fix Sync Now 500 error: nested app context + unhandled exception
 bf78019 Fix KoboToolbox sync 500 error: auto-create missing table on first access
 6de0359 Update CLAUDE.md with KoboToolbox sync docs, 4 new mistakes, and architecture rules
 ebaaa28 Add KoboToolbox sync with manual UI trigger, validation, and sync log
-08c8656 Add Satoshi font family for clean modern typography
-dc945ef Add CLAUDE.md with project intelligence and mistakes log
-379803f Major UI refactor: modern dashboard, simplified workflows
-2f93dfd Fix CSRF error: disable secure cookie for LAN-only HTTP access
-2a826d9 Bind web container to LAN IP for network access
-e7cdb73 Add email field to User model, set real user credentials
-ee64e5a Fix synthetic data: prevent duplicate freezer positions
-ff7c635 Fix Dockerfile pip install: use filtered requirements file
-71eee58 Fix Dockerfile: simplify deps, skip WeasyPrint for now
-de650a3 Adapt docker-compose for shared server deployment
-e37428b Initial commit: TGMA Research Data Platform
 ```
