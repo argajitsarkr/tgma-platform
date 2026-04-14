@@ -109,10 +109,40 @@
 <!-- Label Kit info -->
 <div class="alert mb-3" style="background:var(--tgma-accent-light);border:1px solid var(--tgma-accent);font-size:0.85rem;padding:0.6rem 1rem;">
     <i class="bi bi-info-circle"></i>
-    <strong>Label Kit (12 labels per participant):</strong>
-    3 Blood vials + 1 Fecal tube + 4 Saliva vials (timed) + 1 Participant folder + 3 Documents (Consent, Info Sheet, Questionnaire).
-    <br><strong>Seznik Printer:</strong> Download the Excel file → open in Seznik app → "Print Excel" → map columns to your 40x30mm label template.
+    <strong>Label Kit (9 labels per participant):</strong>
+    1 Fecal tube + 4 Saliva vials (timed) + 1 Participant folder + 3 Documents (Consent, Info Sheet, Questionnaire).
+    <br><strong>Thermal Printer (50x25mm):</strong> Click the <i class="bi bi-printer-fill"></i> button per participant below → Ctrl+P → select USB thermal printer → print 9 labels on the roll.
 </div>
+
+<!-- Per-participant thermal print buttons -->
+{% if label_ids %}
+<div class="tgma-card mb-3">
+    <div class="tgma-card-header"><i class="bi bi-printer-fill"></i> Print Thermal Labels (per participant)</div>
+    <div class="table-responsive" style="max-height:260px;overflow-y:auto;">
+        <table class="table table-hover table-sm mb-0">
+            <thead style="position:sticky;top:0;z-index:1;background:#fff;">
+                <tr>
+                    <th>Tracking ID</th>
+                    <th>Thermal Print (9 labels)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tid in label_ids %}
+                <tr>
+                    <td><code>{{ tid }}</code></td>
+                    <td>
+                        <a href="{{ url_for('ids.thermal_labels', tracking_id=tid) }}"
+                           class="btn btn-tgma btn-sm" target="_blank">
+                            <i class="bi bi-printer-fill"></i> Print 9 Labels (50x25mm)
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 {% if label_ids %}
 <div class="label-grid">

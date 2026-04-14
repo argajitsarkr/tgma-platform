@@ -138,15 +138,31 @@
                             <td>{{ b.gender }}</td>
                             <td>{{ b.worker or '—' }}</td>
                             <td>{{ b.date.strftime('%d %b %Y') if b.date else '—' }}</td>
-                            <td>
+                            <td class="text-nowrap">
                                 <a href="{{ url_for('ids.print_labels', start=b.start, end=b.end, worker=b.worker or '') }}"
                                    class="btn btn-tgma-outline btn-sm" title="Print label sheet">
                                     <i class="bi bi-printer"></i>
                                 </a>
                                 <a href="{{ url_for('ids.label_kit_excel', start=b.start, end=b.end, worker=b.worker or '') }}"
-                                   class="btn btn-tgma btn-sm" title="Download 12-label Seznik kit">
+                                   class="btn btn-tgma btn-sm" title="Download 9-label kit (Excel)">
                                     <i class="bi bi-file-earmark-spreadsheet"></i> Kit
                                 </a>
+                                <button class="btn btn-outline-secondary btn-sm" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#batch{{ loop.index }}"
+                                        title="Expand for per-participant thermal print">
+                                    <i class="bi bi-printer-fill"></i> Thermal
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="batch{{ loop.index }}">
+                            <td colspan="7" style="background:#f9fafb;padding:0.5rem 1rem;">
+                                <small class="fw-semibold text-muted d-block mb-1">Per-participant thermal labels (50x25mm):</small>
+                                {% for tid in b.ids %}
+                                <a href="{{ url_for('ids.thermal_labels', tracking_id=tid) }}"
+                                   class="btn btn-tgma-outline btn-sm me-1 mb-1" target="_blank">
+                                    <i class="bi bi-printer-fill"></i> {{ tid }}
+                                </a>
+                                {% endfor %}
                             </td>
                         </tr>
                         {% else %}

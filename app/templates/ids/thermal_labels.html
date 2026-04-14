@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Thermal Labels — {{ tracking_id }} — TGMA{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ---------- Screen layout: 3x3 grid preview ---------- */
+.thermal-controls { margin-bottom: 1.5rem; }
+
+.thermal-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    max-width: 780px;
+}
+
+.thermal-label {
+    width: 50mm;
+    height: 25mm;
+    border: 1.5px dashed #B7E4C7;
+    border-radius: 4px;
+    padding: 1.5mm 2mm;
+    box-sizing: border-box;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+.label-top {
+    font-size: 6.5pt;
+    font-weight: 700;
+    color: #2D6A4F;
+    text-transform: uppercase;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.label-top .cat-tag {
+    display: inline-block;
+    background: #D8F3DC;
+    color: #2D6A4F;
+    padding: 0 3px;
+    border-radius: 2px;
+    font-size: 5.5pt;
+    margin-right: 3px;
+    vertical-align: middle;
+}
+
+.label-barcode {
+    text-align: center;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.label-barcode img {
+    max-width: 100%;
+    max-height: 12mm;
+    height: auto;
+}
+
+.label-value {
+    font-family: 'Courier New', monospace;
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-align: center;
+    color: #1B1B1B;
+    letter-spacing: 0.03em;
+    line-height: 1;
+}
+
+.label-footer {
+    font-size: 5pt;
+    color: #6B7280;
+    text-align: center;
+    line-height: 1;
+}
+
+/* Folder label — special layout */
+.thermal-label.folder-label .label-value {
+    font-size: 8pt;
+    font-weight: 800;
+}
+
+/* ---------- Print: each label = one 50x25mm page ---------- */
+@page {
+    size: 50mm 25mm;
+    margin: 0;
+}
+
+@media print {
+    /* Hide everything non-label */
+    .thermal-controls, .sidebar, .top-bar, .main-content > .top-bar,
+    nav, footer, .alert, .thermal-grid-heading { display: none !important; }
+
+    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    .content-area { padding: 0 !important; margin: 0 !important; }
+    body { margin: 0; padding: 0; background: #fff; }
+
+    .thermal-grid {
+        display: block;
+        max-width: none;
+    }
+
+    .thermal-label {
+        width: 50mm;
+        height: 25mm;
+        border: none;
+        border-radius: 0;
+        page-break-after: always;
+        margin: 0;
+        padding: 1.5mm 2mm;
+    }
+
+    .thermal-label:last-child {
+        page-break-after: auto;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="thermal-controls d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="page-title mb-1">Thermal Labels — <code>{{ tracking_id }}</code></h2>
+        <p class="page-subtitle mb-0">{{ labels | length }} labels (50 x 25 mm) ready for direct printing.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('ids.index') }}" class="btn btn-tgma-outline me-2"><i class="bi bi-arrow-left"></i> Back</a>
+        <button onclick="window.print()" class="btn btn-tgma"><i class="bi bi-printer-fill"></i> Print Labels (Ctrl+P)</button>
+    </div>
+</div>
+
+<div class="alert mb-3" style="background:var(--tgma-accent-light);border:1px solid var(--tgma-accent);font-size:0.85rem;padding:0.6rem 1rem;">
+    <i class="bi bi-info-circle"></i>
+    <strong>How to print:</strong> Click "Print Labels" or press <kbd>Ctrl+P</kbd>. Select your USB thermal printer.
+    The browser will set page size to <strong>50 x 25 mm</strong> — each label prints as a full page on the roll.
+    <br><small class="text-muted">Chrome/Edge: page size is set automatically. Firefox: manually select 50x25mm in print settings.</small>
+</div>
+
+<h6 class="thermal-grid-heading text-muted mb-2">Preview ({{ labels | length }} labels)</h6>
+
+<div class="thermal-grid">
+    {% for l in labels %}
+    <div class="thermal-label {{ 'folder-label' if l.category == 'Folder' }}">
+        <div class="label-top">
+            <span class="cat-tag">{{ l.category }}</span>
+            {{ l.description }}
+        </div>
+        <div class="label-barcode">
+            <img src="data:image/png;base64,{{ l.barcode_b64 }}" alt="{{ l.barcode_value }}">
+        </div>
+        <div class="label-value">{{ l.barcode_value }}</div>
+        <div class="label-footer">TGMA &mdash; Tripura University</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

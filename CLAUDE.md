@@ -61,14 +61,14 @@ conda run -n base python -m pytest tests/ -v
 | `app/routes/participants.py` | `/participants` | CRUD, server-side DataTables API (`api_data`), detail, edit (POST), delete (POST) — edit/delete gated to PI/Co-PI/Bioinformatician; delete cascades to all child records |
 | `app/routes/samples.py` | `/samples` | Register, tracker, freezer map, dispatch, detail; ALLOWED_SAMPLE_TYPES = ['stool', 'saliva_cortisol'] |
 | `app/routes/diagnostics.py` | `/diagnostics` | Blood report PDF upload (NOT Excel import) |
-| `app/routes/ids.py` | `/ids` | Bulk ID allocation per district; groups recent allocations into batches by (worker, date, district, gender); each batch row has re-print and label-kit Excel download buttons for the Seznik thermal printer |
+| `app/routes/ids.py` | `/ids` | Bulk ID allocation per district; batches table with re-print, Excel kit, and per-participant thermal print (50x25mm) buttons; `thermal_labels()` route generates 9 Code128 barcode PNGs in-memory via `python-barcode` + base64 data URIs; LABEL_KIT = 9 labels (blood vials removed) |
 | `app/routes/quality.py` | `/quality` | GPS bounds check, outlier detection (|Z|>3), duplicates, missing data, incomplete sample sets |
 | `app/routes/kobo.py` | `/kobo` | Manual "Sync Now" button, full re-sync, sync log history, per-run detail view. Restricted to PI/Co-PI/Bioinformatician. |
 | `app/routes/documents.py` | `/documents` | Per-participant document vault — upload/view/download/delete scanned consent/assent/info-sheet/questionnaire forms and photos. Merges read-only `BloodReport` rows into the same view. Upload + delete gated to PI/Co-PI/Bioinformatician. Path-traversal guard via `validate_tracking_id()`. Self-healing `_ensure_table()` for first deploy. |
 | `app/routes/ml.py` | `/ml` | Placeholder for ML pipeline status |
 | `app/routes/reports.py` | `/reports` | ICMR progress report, export-ready |
 
-### Templates (20 files)
+### Templates (22 files)
 | File | Notes |
 |------|-------|
 | `app/templates/base.html` | Sidebar layout, Satoshi font, Bootstrap 5, DataTables, Chart.js — all local assets. Sidebar has "Data" section with KoboToolbox Sync link (role-gated). |
@@ -82,7 +82,9 @@ conda run -n base python -m pytest tests/ -v
 | `app/templates/samples/freezer.html` | Freezer grid map |
 | `app/templates/samples/dispatch.html` | Shipment management |
 | `app/templates/diagnostics/index.html` | Blood report PDF upload |
-| `app/templates/ids/allocate.html` | Bulk ID generation |
+| `app/templates/ids/allocate.html` | Bulk ID generation; batches table with expandable per-participant thermal print links |
+| `app/templates/ids/labels.html` | Batch label sheet — 9-label info banner, per-participant thermal print button table, 4-column grid preview |
+| `app/templates/ids/thermal_labels.html` | Print-ready 50x25mm thermal labels — 9 Code128 barcodes as base64 PNGs, `@page { size: 50mm 25mm }` CSS, 3x3 screen preview grid |
 | `app/templates/quality/dashboard.html` | Data quality dashboard (GPS, outliers, duplicates, completeness) |
 | `app/templates/ml/status.html` | Coming soon placeholder |
 | `app/templates/reports/index.html` | Report listing |

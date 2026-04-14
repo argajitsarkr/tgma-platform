@@ -1,6 +1,7 @@
 """ID Allocation — pre-allocate tracking IDs for field workers before they go to field."""
 
 import io
+import base64
 from datetime import date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
@@ -166,21 +167,19 @@ def print_labels():
                            today=date.today())
 
 
-# -- Label Kit definition: 12 labels per participant --
+# -- Label Kit definition: 9 labels per participant --
+# Blood vials removed — diagnostics company requires handwritten name/age/sex.
 LABEL_KIT = [
     # (suffix, description, category)
-    ('',     '',                  'Folder'),
-    ('-BLD1', 'Blood Vial 1',    'Blood'),
-    ('-BLD2', 'Blood Vial 2',    'Blood'),
-    ('-BLD3', 'Blood Vial 3',    'Blood'),
-    ('-STL',  'Fecal Sample',    'Fecal'),
-    ('-SLV1', 'Morning (6-8 AM)',  'Saliva'),
-    ('-SLV2', 'Noon (12-1 PM)',    'Saliva'),
-    ('-SLV3', 'Evening (5-6 PM)',  'Saliva'),
-    ('-SLV4', 'Night (10-11 PM)',  'Saliva'),
-    ('-DOC',  'Consent + Assent',    'Document'),
-    ('-DOC',  'Information Sheet',   'Document'),
-    ('-DOC',  'Questionnaire',       'Document'),
+    ('',      'Participant Folder',    'Folder'),
+    ('-STL',  'Fecal Sample',          'Fecal'),
+    ('-SLV1', 'Morning (6-8 AM)',      'Saliva'),
+    ('-SLV2', 'Noon (12-1 PM)',        'Saliva'),
+    ('-SLV3', 'Evening (5-6 PM)',      'Saliva'),
+    ('-SLV4', 'Night (10-11 PM)',      'Saliva'),
+    ('-DOC',  'Consent + Assent',      'Document'),
+    ('-DOC',  'Information Sheet',     'Document'),
+    ('-DOC',  'Questionnaire',         'Document'),
 ]
 
 
@@ -307,3 +306,39 @@ def label_kit_excel():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={'Content-Disposition': f'attachment; filename="{filename}"'},
     )
+
+
+@ids_bp.route('/thermal-labels/<tracking_id>')
+@login_required
+def thermal_labels(tracking_id):
+    """Print-ready page for 9 thermal labels (50x25mm) with real Code128 barcodes."""
+    import barcode as barcode_lib
+    from barcode.writer import ImageWriter
+
+    labels = []
+    for suffix, description, category in LABEL_KIT:
+        barcode_value = f'{tracking_id}{suffix}'
+
+        # Generate Code128 barcode PNG in memory
+        code = barcode_lib.get('code128', barcode_value, writer=ImageWriter())
+        buf = io.BytesIO()
+        code.write(buf, options={
+            'write_text': False,
+            'module_height': 8,
+            'module_width': 0.25,
+            'quiet_zone': 2,
+        })
+        buf.seek(0)
+        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+
+        labels.append({
+            'barcode_value': barcode_value,
+            'barcode_b64': b64,
+            'description': description,
+            'category': category,
+            'tracking_id': tracking_id,
+        })
+
+    return render_template('ids/thermal_labels.html',
+                           labels=labels,
+                           tracking_id=tracking_id)
