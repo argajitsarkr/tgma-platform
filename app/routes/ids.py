@@ -311,27 +311,31 @@ def label_kit_excel():
 @ids_bp.route('/thermal-labels/<tracking_id>')
 @login_required
 def thermal_labels(tracking_id):
-    """Print-ready page for 9 thermal labels (50x30mm) with QR codes.
+    """Print-ready page for 9 thermal labels (50x30mm page, 25mm sticker) with QR codes.
 
-    QR codes are far more scannable from phones than Code128 barcodes at
-    thermal-printer resolution.  Each QR encodes the label value string
-    (e.g. TGMA-WT-F-0001-STL) so any phone QR scanner can read it.
+    Each QR encodes a URL to the participant's detail page on the platform.
+    Scanning a label with any phone camera opens the participant record directly.
     """
     import qrcode
     from qrcode.constants import ERROR_CORRECT_M
+
+    # Build base URL for participant detail links
+    base_url = request.host_url.rstrip('/')
 
     labels = []
     for suffix, description, category in LABEL_KIT:
         barcode_value = f'{tracking_id}{suffix}'
 
-        # Generate QR code PNG in memory
+        # QR encodes a direct URL to the participant's page
+        qr_url = f'{base_url}/participants/{tracking_id}'
+
         qr = qrcode.QRCode(
             version=None,
             error_correction=ERROR_CORRECT_M,
             box_size=8,
             border=2,
         )
-        qr.add_data(barcode_value)
+        qr.add_data(qr_url)
         qr.make(fit=True)
         img = qr.make_image(fill_color='black', back_color='white')
         buf = io.BytesIO()

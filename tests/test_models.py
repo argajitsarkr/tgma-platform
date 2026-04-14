@@ -11,22 +11,24 @@ from app.utils.helpers import (
 class TestTrackingIdValidation:
 
     def test_valid_ids(self):
-        assert validate_tracking_id('TGMA-WT-F-0037')
+        assert validate_tracking_id('TGMA-WT-F-037')      # 3-digit (new format)
+        assert validate_tracking_id('TGMA-ST-M-001')
+        assert validate_tracking_id('TGMA-DL-F-999')
+        assert validate_tracking_id('TGMA-WT-F-0037')     # 4-digit (legacy)
         assert validate_tracking_id('TGMA-ST-M-0001')
-        assert validate_tracking_id('TGMA-DL-F-9999')
 
     def test_invalid_ids(self):
-        assert not validate_tracking_id('TGMA-XX-F-0001')
-        assert not validate_tracking_id('TGMA-WT-X-0001')
-        assert not validate_tracking_id('TGMA-WT-F-001')  # 3 digits
-        assert not validate_tracking_id('XYZ-WT-F-0001')
+        assert not validate_tracking_id('TGMA-XX-F-001')
+        assert not validate_tracking_id('TGMA-WT-X-001')
+        assert not validate_tracking_id('TGMA-WT-F-01')   # 2 digits
+        assert not validate_tracking_id('XYZ-WT-F-001')
         assert not validate_tracking_id('')
         assert not validate_tracking_id('TGMA-WT-F-00001')  # 5 digits
 
     def test_generate_tracking_id(self):
-        assert generate_tracking_id('WT', 'F', 37) == 'TGMA-WT-F-0037'
-        assert generate_tracking_id('DL', 'M', 1) == 'TGMA-DL-M-0001'
-        assert generate_tracking_id('ST', 'F', 9999) == 'TGMA-ST-F-9999'
+        assert generate_tracking_id('WT', 'F', 37) == 'TGMA-WT-F-037'
+        assert generate_tracking_id('DL', 'M', 1) == 'TGMA-DL-M-001'
+        assert generate_tracking_id('ST', 'F', 999) == 'TGMA-ST-F-999'
 
 
 class TestSampleIdGeneration:

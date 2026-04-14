@@ -101,11 +101,11 @@
                             <td>{{ 'Male' if info.gender == 'M' else 'Female' }}</td>
                             <td>
                                 {% if info.last_sequence > 0 %}
-                                <code>{{ '%04d' | format(info.last_sequence) }}</code>
+                                <code>{{ '%03d' | format(info.last_sequence) }}</code>
                                 {% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
-                            <td><span class="fw-bold" style="color:var(--tgma-accent);">{{ '%04d' | format(info.next_sequence) }}</span></td>
-                            <td><code>TGMA-{{ info.district }}-{{ info.gender }}-{{ '%04d' | format(info.next_sequence) }}</code></td>
+                            <td><span class="fw-bold" style="color:var(--tgma-accent);">{{ '%03d' | format(info.next_sequence) }}</span></td>
+                            <td><code>TGMA-{{ info.district }}-{{ info.gender }}-{{ '%03d' | format(info.next_sequence) }}</code></td>
                         </tr>
                         {% endfor %}
                     </tbody>

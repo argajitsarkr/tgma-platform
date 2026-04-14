@@ -111,7 +111,7 @@ conda run -n base python -m pytest tests/ -v
 | File | Purpose |
 |------|---------|
 | `app/utils/__init__.py` | Package init |
-| `app/utils/helpers.py` | `validate_tracking_id()`, `generate_tracking_id()`, `generate_sample_id()`, `validate_gps()`, `validate_age()`; TRACKING_ID_PATTERN = `TGMA-(WT|ST|DL)-(M|F)-(\d{4})`; SAMPLE_SUFFIXES dict (STL, BLD, SLV1-4, COR, DNA, SRM) |
+| `app/utils/helpers.py` | `validate_tracking_id()`, `generate_tracking_id()`, `generate_sample_id()`, `validate_gps()`, `validate_age()`; TRACKING_ID_PATTERN = `TGMA-(WT|ST|DL)-(M|F)-(\d{3,4})` (3-digit new, 4-digit legacy); SAMPLE_SUFFIXES dict (STL, BLD, SLV1-4, COR, DNA, SRM) |
 | `app/utils/decorators.py` | `@role_required()` decorator for route protection |
 | `app/utils/audit.py` | Audit logging helper |
 
@@ -210,7 +210,7 @@ conda run -n base python -m pytest tests/ -v
 **Rule**: For large multi-file builds, create files in parallel batches and commit frequently. Use the plan file to track progress across sessions.
 
 ### 13. Test assertion against wrong validation layer
-**What happened**: Wrote a test expecting a "gender" error message, but the tracking_id regex `TGMA-(WT|ST|DL)-(M|F)-(\d{4})` rejected the ID first (before gender validation ran). Test failed with "Invalid format" instead of "gender".
+**What happened**: Wrote a test expecting a "gender" error message, but the tracking_id regex `TGMA-(WT|ST|DL)-(M|F)-(\d{3,4})` rejected the ID first (before gender validation ran). Test failed with "Invalid format" instead of "gender".
 **Fix**: Updated test to assert `error is not None` instead of checking for a specific error substring.
 **Rule**: When writing validation tests, understand the validation order. If field A is validated before field B, a test for field B rejection must use input that passes field A first. The tracking_id regex enforces gender (M|F) at the format level — there's no separate gender rejection path for IDs with invalid gender codes.
 
@@ -246,7 +246,7 @@ conda run -n base python -m pytest tests/ -v
 
 ### 20. URL path segments joined into filesystem paths without validation
 **What happened**: When building the Document Vault upload route, `tracking_id` flows from a URL path parameter straight into `os.path.join(UPLOAD_FOLDER, 'participants', tracking_id, doc_type)`. Even though Flask route converters give you a string, nothing stops a caller from sending a percent-encoded `../` sequence that `os.path.join` will happily normalize into an escape from the uploads volume.
-**Fix**: Call `validate_tracking_id()` from `app/utils/helpers.py` at the top of every route that uses a `tracking_id` to build a filesystem path. The regex `^TGMA-(WT|ST|DL)-(M|F)-(\d{4})$` rejects anything with slashes, dots, or percent-encoded escapes.
+**Fix**: Call `validate_tracking_id()` from `app/utils/helpers.py` at the top of every route that uses a `tracking_id` to build a filesystem path. The regex `^TGMA-(WT|ST|DL)-(M|F)-(\d{3,4})$` rejects anything with slashes, dots, or percent-encoded escapes.
 **Rule**: Never concatenate a URL path parameter into a filesystem path without validating it against a strict regex first. Apply this to *any* user-controlled string used in `os.path.join`/`open`/`send_file`, not just tracking IDs. Also cascade-delete orphaned files from disk in wipe scripts — DB cascade does not clean up the filesystem (see `scripts/wipe_data.py` which `shutil.rmtree`s the `participants/` upload subtree).
 
 ### 21. `scripts/` not in `sys.path` when run inside Docker container

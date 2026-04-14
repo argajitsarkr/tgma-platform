@@ -3,8 +3,8 @@
 import re
 
 
-# Valid tracking ID pattern: TGMA-WT-F-0037
-TRACKING_ID_PATTERN = re.compile(r'^TGMA-(WT|ST|DL)-(M|F)-(\d{4})$')
+# Valid tracking ID pattern: TGMA-WT-F-037 (3 digits) or TGMA-WT-F-0037 (legacy 4 digits)
+TRACKING_ID_PATTERN = re.compile(r'^TGMA-(WT|ST|DL)-(M|F)-(\d{3,4})$')
 
 # Sample ID suffixes
 SAMPLE_SUFFIXES = {
@@ -29,7 +29,7 @@ def validate_tracking_id(tracking_id):
 
 def generate_tracking_id(district, gender, sequence):
     """Generate a tracking ID from components."""
-    return f"TGMA-{district}-{gender}-{sequence:04d}"
+    return f"TGMA-{district}-{gender}-{sequence:03d}"
 
 
 def generate_sample_id(tracking_id, sample_type):
