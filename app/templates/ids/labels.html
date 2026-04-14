@@ -109,9 +109,9 @@
 <!-- Label Kit info -->
 <div class="alert mb-3" style="background:var(--tgma-accent-light);border:1px solid var(--tgma-accent);font-size:0.85rem;padding:0.6rem 1rem;">
     <i class="bi bi-info-circle"></i>
-    <strong>Label Kit (9 labels per participant):</strong>
-    1 Fecal tube + 4 Saliva vials (timed) + 1 Participant folder + 3 Documents (Consent, Info Sheet, Questionnaire).
-    <br><strong>Thermal Printer (50x25mm):</strong> Click the <i class="bi bi-printer-fill"></i> button per participant below → Ctrl+P → select USB thermal printer → print 9 labels on the roll.
+    <strong>Label Kit (10 labels per participant):</strong>
+    1 Fecal tube + 4 Saliva vials (timed) + 1 Participant folder + 4 Documents (Consent, Assent, Info Sheet, Questionnaire).
+    <br><strong>Thermal Printer (50x25mm):</strong> Click the <i class="bi bi-printer-fill"></i> button per participant below → Ctrl+P → select USB thermal printer → print 10 labels on the roll.
 </div>
 
 <!-- Per-participant thermal print buttons -->
@@ -123,7 +123,7 @@
             <thead style="position:sticky;top:0;z-index:1;background:#fff;">
                 <tr>
                     <th>Tracking ID</th>
-                    <th>Thermal Print (9 labels)</th>
+                    <th>Thermal Print (10 labels)</th>
                 </tr>
             </thead>
             <tbody>
@@ -133,7 +133,7 @@
                     <td>
                         <a href="{{ url_for('ids.thermal_labels', tracking_id=tid) }}"
                            class="btn btn-tgma btn-sm" target="_blank">
-                            <i class="bi bi-printer-fill"></i> Print 9 Labels (50x25mm)
+                            <i class="bi bi-printer-fill"></i> Print 10 Labels (50x25mm)
                         </a>
                     </td>
                 </tr>

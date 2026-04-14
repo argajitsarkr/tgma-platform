@@ -167,7 +167,7 @@ def print_labels():
                            today=date.today())
 
 
-# -- Label Kit definition: 9 labels per participant --
+# -- Label Kit definition: 10 labels per participant --
 # Blood vials removed — diagnostics company requires handwritten name/age/sex.
 LABEL_KIT = [
     # (suffix, description, category)
@@ -177,7 +177,8 @@ LABEL_KIT = [
     ('-SLV2', 'Noon (12-1 PM)',        'Saliva'),
     ('-SLV3', 'Evening (5-6 PM)',      'Saliva'),
     ('-SLV4', 'Night (10-11 PM)',      'Saliva'),
-    ('-DOC',  'Consent + Assent',      'Document'),
+    ('-DOC',  'Consent Form',          'Document'),
+    ('-DOC',  'Assent Form',           'Document'),
     ('-DOC',  'Information Sheet',     'Document'),
     ('-DOC',  'Questionnaire',         'Document'),
 ]
@@ -311,7 +312,7 @@ def label_kit_excel():
 @ids_bp.route('/thermal-labels/<tracking_id>')
 @login_required
 def thermal_labels(tracking_id):
-    """Print-ready page for 9 thermal labels (50x30mm page, 25mm sticker) with QR codes.
+    """Print-ready page for 10 thermal labels (50x30mm page, 25mm sticker) with QR codes.
 
     Each QR encodes a URL to the participant's detail page on the platform.
     Scanning a label with any phone camera opens the participant record directly.
