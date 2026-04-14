@@ -311,29 +311,37 @@ def label_kit_excel():
 @ids_bp.route('/thermal-labels/<tracking_id>')
 @login_required
 def thermal_labels(tracking_id):
-    """Print-ready page for 9 thermal labels (50x25mm) with real Code128 barcodes."""
-    import barcode as barcode_lib
-    from barcode.writer import ImageWriter
+    """Print-ready page for 9 thermal labels (50x30mm) with QR codes.
+
+    QR codes are far more scannable from phones than Code128 barcodes at
+    thermal-printer resolution.  Each QR encodes the label value string
+    (e.g. TGMA-WT-F-0001-STL) so any phone QR scanner can read it.
+    """
+    import qrcode
+    from qrcode.constants import ERROR_CORRECT_M
 
     labels = []
     for suffix, description, category in LABEL_KIT:
         barcode_value = f'{tracking_id}{suffix}'
 
-        # Generate Code128 barcode PNG in memory
-        code = barcode_lib.get('code128', barcode_value, writer=ImageWriter())
+        # Generate QR code PNG in memory
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=ERROR_CORRECT_M,
+            box_size=8,
+            border=2,
+        )
+        qr.add_data(barcode_value)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color='black', back_color='white')
         buf = io.BytesIO()
-        code.write(buf, options={
-            'write_text': False,
-            'module_height': 8,
-            'module_width': 0.25,
-            'quiet_zone': 2,
-        })
+        img.save(buf, format='PNG')
         buf.seek(0)
         b64 = base64.b64encode(buf.getvalue()).decode('ascii')
 
         labels.append({
             'barcode_value': barcode_value,
-            'barcode_b64': b64,
+            'qr_b64': b64,
             'description': description,
             'category': category,
             'tracking_id': tracking_id,
@@ -342,3 +350,55 @@ def thermal_labels(tracking_id):
     return render_template('ids/thermal_labels.html',
                            labels=labels,
                            tracking_id=tracking_id)
+
+
+@ids_bp.route('/delete-allocation/<tracking_id>', methods=['POST'])
+@login_required
+@role_required('pi', 'co_pi', 'bioinformatician')
+def delete_allocation(tracking_id):
+    """Delete a single ID allocation — only if no Participant uses it."""
+    alloc = db.session.get(IdAllocation, tracking_id)
+    if not alloc:
+        flash('Allocation not found.', 'danger')
+        return redirect(url_for('ids.index'))
+
+    if db.session.get(Participant, tracking_id):
+        flash(f'Cannot delete {tracking_id} — a participant record exists with this ID.', 'warning')
+        return redirect(url_for('ids.index'))
+
+    db.session.delete(alloc)
+    db.session.commit()
+    flash(f'Allocation {tracking_id} deleted.', 'success')
+    return redirect(url_for('ids.index'))
+
+
+@ids_bp.route('/delete-batch', methods=['POST'])
+@login_required
+@role_required('pi', 'co_pi', 'bioinformatician')
+def delete_batch():
+    """Delete all ID allocations in a batch — refuses if any have a Participant."""
+    ids = request.form.getlist('tracking_ids')
+    if not ids:
+        flash('No IDs specified.', 'danger')
+        return redirect(url_for('ids.index'))
+
+    blocked = []
+    to_delete = []
+    for tid in ids:
+        alloc = db.session.get(IdAllocation, tid)
+        if not alloc:
+            continue
+        if db.session.get(Participant, tid):
+            blocked.append(tid)
+        else:
+            to_delete.append(alloc)
+
+    if blocked:
+        flash(f'Cannot delete {len(blocked)} ID(s) with existing participants: {", ".join(blocked)}', 'warning')
+        return redirect(url_for('ids.index'))
+
+    for alloc in to_delete:
+        db.session.delete(alloc)
+    db.session.commit()
+    flash(f'Deleted {len(to_delete)} ID allocation(s).', 'success')
+    return redirect(url_for('ids.index'))

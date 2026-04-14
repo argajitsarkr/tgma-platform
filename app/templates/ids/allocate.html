@@ -156,12 +156,38 @@
                         </tr>
                         <tr class="collapse" id="batch{{ loop.index }}">
                             <td colspan="7" style="background:#f9fafb;padding:0.5rem 1rem;">
-                                <small class="fw-semibold text-muted d-block mb-1">Per-participant thermal labels (50x25mm):</small>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="fw-semibold text-muted">Per-participant thermal labels (50x25mm):</small>
+                                    {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+                                    <form method="POST" action="{{ url_for('ids.delete_batch') }}" class="d-inline"
+                                          onsubmit="return confirm('Delete ALL {{ b.count }} IDs in this batch? This cannot be undone.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        {% for tid in b.ids %}
+                                        <input type="hidden" name="tracking_ids" value="{{ tid }}">
+                                        {% endfor %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i> Delete Batch ({{ b.count }})
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
                                 {% for tid in b.ids %}
-                                <a href="{{ url_for('ids.thermal_labels', tracking_id=tid) }}"
-                                   class="btn btn-tgma-outline btn-sm me-1 mb-1" target="_blank">
-                                    <i class="bi bi-printer-fill"></i> {{ tid }}
-                                </a>
+                                <div class="d-inline-flex align-items-center me-2 mb-1">
+                                    <a href="{{ url_for('ids.thermal_labels', tracking_id=tid) }}"
+                                       class="btn btn-tgma-outline btn-sm" target="_blank">
+                                        <i class="bi bi-printer-fill"></i> {{ tid }}
+                                    </a>
+                                    {% if current_user.has_role('pi', 'co_pi', 'bioinformatician') %}
+                                    <form method="POST" action="{{ url_for('ids.delete_allocation', tracking_id=tid) }}"
+                                          class="d-inline ms-1"
+                                          onsubmit="return confirm('Delete allocation {{ tid }}?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Delete {{ tid }}">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
                                 {% endfor %}
                             </td>
                         </tr>
