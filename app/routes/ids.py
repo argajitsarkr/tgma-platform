@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import IdAllocation, Participant
-from app.utils.helpers import generate_tracking_id
+from app.utils.helpers import generate_tracking_id, DISTRICT_CODES
 from app.utils.decorators import role_required
 
 ids_bp = Blueprint('ids', __name__, url_prefix='/ids')
@@ -39,7 +39,7 @@ def _get_next_seq(district, gender):
 def index():
     """Show allocation dashboard — current sequence status per district/gender."""
     summaries = {}
-    for district in ['WT', 'ST', 'DL']:
+    for district in DISTRICT_CODES:
         for gender in ['M', 'F']:
             key = f"{district}-{gender}"
             next_seq = _get_next_seq(district, gender)
@@ -95,7 +95,7 @@ def allocate():
     except (ValueError, TypeError):
         count = 1
 
-    if district not in ('WT', 'ST', 'DL'):
+    if district not in DISTRICT_CODES:
         flash('Invalid district.', 'danger')
         return redirect(url_for('ids.index'))
     if gender not in ('M', 'F'):

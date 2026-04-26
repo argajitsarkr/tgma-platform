@@ -11,8 +11,8 @@
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Tracking ID</label>
-                    <input type="text" class="form-control" name="tracking_id" placeholder="TGMA-WT-F-0001" required pattern="TGMA-(WT|ST|DL)-(M|F)-\d{4}">
-                    <small class="text-muted">Format: TGMA-XX-X-XXXX</small>
+                    <input type="text" class="form-control" name="tracking_id" placeholder="TGMA-WT-F-001" required pattern="TGMA-(WT|ST|DL|NT|GT|UK)-(M|F)-\d{3,4}">
+                    <small class="text-muted">Format: TGMA-XX-X-XXX</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Full Name</label>
@@ -35,6 +35,9 @@
                         <option value="WT">West Tripura</option>
                         <option value="ST">South Tripura</option>
                         <option value="DL">Dhalai</option>
+                        <option value="NT">North Tripura</option>
+                        <option value="GT">Gomati</option>
+                        <option value="UK">Unakoti</option>
                     </select>
                 </div>
                 <div class="col-md-3">

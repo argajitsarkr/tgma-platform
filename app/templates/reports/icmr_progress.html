@@ -37,7 +37,7 @@
         <table class="table table-sm table-bordered">
             <thead><tr><th>District</th><th>Enrolled</th><th>Target</th><th>Progress</th></tr></thead>
             <tbody>
-                {% for code, name in [('WT', 'West Tripura'), ('ST', 'South Tripura'), ('DL', 'Dhalai')] %}
+                {% for code, name in [('WT', 'West Tripura'), ('ST', 'South Tripura'), ('DL', 'Dhalai'), ('NT', 'North Tripura'), ('GT', 'Gomati'), ('UK', 'Unakoti')] %}
                 <tr>
                     <td>{{ name }}</td>
                     <td>{{ by_district.get(code, 0) }}</td>

@@ -17,6 +17,12 @@ class TestTrackingIdValidation:
         assert validate_tracking_id('TGMA-WT-F-0037')     # 4-digit (legacy)
         assert validate_tracking_id('TGMA-ST-M-0001')
 
+    def test_valid_ids_v3_districts(self):
+        # XLSForm v3 added North Tripura, Gomati, Unakoti
+        assert validate_tracking_id('TGMA-NT-F-001')
+        assert validate_tracking_id('TGMA-GT-M-042')
+        assert validate_tracking_id('TGMA-UK-F-099')
+
     def test_invalid_ids(self):
         assert not validate_tracking_id('TGMA-XX-F-001')
         assert not validate_tracking_id('TGMA-WT-X-001')

@@ -98,13 +98,20 @@
 new Chart(document.getElementById('districtChart'), {
     type: 'bar',
     data: {
-        labels: ['West Tripura', 'South Tripura', 'Dhalai'],
+        labels: ['West Tripura', 'South Tripura', 'Dhalai', 'North Tripura', 'Gomati', 'Unakoti'],
         datasets: [{
             label: 'Enrolled',
-            data: [{{ district_counts.get('WT', 0) }}, {{ district_counts.get('ST', 0) }}, {{ district_counts.get('DL', 0) }}],
-            backgroundColor: ['#2D6A4F', '#52B788', '#95D5B2'],
+            data: [
+                {{ district_counts.get('WT', 0) }},
+                {{ district_counts.get('ST', 0) }},
+                {{ district_counts.get('DL', 0) }},
+                {{ district_counts.get('NT', 0) }},
+                {{ district_counts.get('GT', 0) }},
+                {{ district_counts.get('UK', 0) }}
+            ],
+            backgroundColor: ['#2D6A4F', '#52B788', '#95D5B2', '#1B4332', '#74C69D', '#B7E4C7'],
             borderRadius: 8,
-            barThickness: 40,
+            barThickness: 32,
         }]
     },
     options: {

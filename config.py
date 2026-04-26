@@ -15,7 +15,9 @@ class BaseConfig:
     TARGET_ENROLLMENT = 440
     TARGET_SAMPLES_YEAR1 = 160
     TARGET_SEQUENCING = 160
-    DISTRICT_TARGETS = {'WT': 200, 'ST': 100, 'DL': 100}
+    # XLSForm v3 expanded districts to all 6 of Tripura. Targets below are a placeholder
+    # split that still totals 440 — confirm with PI before relying on enrollment dashboards.
+    DISTRICT_TARGETS = {'WT': 200, 'ST': 60, 'DL': 60, 'NT': 60, 'GT': 30, 'UK': 30}
     LIFESTYLE_GROUPS = ['AT', 'AP', 'SDT', 'SP']
     LIFESTYLE_TARGET_EACH = 100
     SEQUENCING_BATCH_SIZE = 32

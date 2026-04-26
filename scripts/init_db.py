@@ -62,10 +62,14 @@ def generate_synthetic_data(count=50):
         'WT': ['Agartala', 'Jirania', 'Mohanpur', 'Bishalgarh', 'Melaghar'],
         'ST': ['Belonia', 'Sabroom', 'Santirbazar', 'Rajnagar', 'Hrishyamukh'],
         'DL': ['Ambassa', 'Kamalpur', 'Gandacherra', 'Longtharai', 'Manu'],
+        'NT': ['Dharmanagar', 'Kanchanpur', 'Panisagar', 'Kadamtala', 'Damcherra'],
+        'GT': ['Udaipur', 'Amarpur', 'Karbook', 'Matabari', 'Killa'],
+        'UK': ['Kailashahar', 'Kumarghat', 'Pecharthal', 'Chandipur'],
     }
 
-    districts = ['WT', 'ST', 'DL']
-    district_weights = [0.45, 0.25, 0.3]  # roughly proportional to targets
+    districts = ['WT', 'ST', 'DL', 'NT', 'GT', 'UK']
+    # Roughly proportional to DISTRICT_TARGETS (200/60/60/60/30/30 = 440 total)
+    district_weights = [0.45, 0.14, 0.14, 0.14, 0.07, 0.06]
     genders = ['M', 'F']
     lifestyles = ['AT', 'AP', 'SDT', 'SP']
 
@@ -123,9 +127,9 @@ def generate_synthetic_data(count=50):
             chronic_illness=False,
             antibiotics_3mo=random.choice([True, False, False, False]),
             hospital_3mo=False,
-            delivery_mode=random.choice(['vaginal', 'cesarean']),
+            delivery_mode=random.choice(['vaginal', 'csection']),
             breastfed=random.choice([True, True, True, False]),
-            bf_duration=random.choice(['6 months', '1 year', '2 years']),
+            bf_duration=random.choice(['lt_6mo', '6_12mo', '1_2yr', 'gt_2yr']),
         )
         db.session.add(hs)
 
@@ -168,12 +172,12 @@ def generate_synthetic_data(count=50):
         # Lifestyle data
         ld = LifestyleData(
             tracking_id=tracking_id,
-            vigorous_activity=random.choice(['daily', '3-4x/week', '1-2x/week', 'rarely', 'never']),
-            moderate_activity=random.choice(['daily', '3-4x/week', '1-2x/week', 'rarely']),
+            vigorous_activity=random.choice(['d0', 'd1_2', 'd3_4', 'd5_6', 'd7']),
+            moderate_activity=random.choice(['d0', 'd1_2', 'd3_4', 'd5_6', 'd7']),
             sedentary_weekday=round(random.uniform(2, 8), 1),
             sedentary_weekend=round(random.uniform(3, 10), 1),
             meals_per_day=random.choice([2, 3, 3, 3, 4]),
-            sleep_quality=random.choice(['good', 'fair', 'poor']),
+            sleep_quality=random.choice(['very_poor', 'poor', 'fair', 'good', 'very_good']),
             daily_screen=round(random.uniform(1, 6), 1),
             pss_control=random.randint(0, 4),
             pss_confident=random.randint(0, 4),
@@ -186,13 +190,13 @@ def generate_synthetic_data(count=50):
         # Environment/SES
         es = EnvironmentSES(
             tracking_id=tracking_id,
-            water_source=random.choice(['tap', 'tubewell', 'well', 'river']),
-            cooking_fuel=random.choice(['LPG', 'firewood', 'electric', 'kerosene']),
-            toilet_type=random.choice(['flush', 'pit', 'open']),
-            household_income=random.choice(['<5000', '5000-10000', '10000-20000', '20000-50000', '>50000']),
+            water_source=random.choice(['municipal', 'tubewell', 'spring', 'packaged', 'rainwater']),
+            cooking_fuel=random.choice(['lpg', 'firewood', 'electric', 'kerosene']),
+            toilet_type=random.choice(['flush', 'pit', 'none']),
+            household_income=random.choice(['lt10k', '10_25k', '25_50k', '50_100k', 'gt100k']),
             household_size=random.randint(3, 8),
-            father_edu=random.choice(['illiterate', 'primary', 'secondary', 'higher_secondary', 'graduate']),
-            mother_edu=random.choice(['illiterate', 'primary', 'secondary', 'higher_secondary', 'graduate']),
+            father_edu=random.choice(['none', 'primary', 'secondary', 'higher_sec', 'graduate']),
+            mother_edu=random.choice(['none', 'primary', 'secondary', 'higher_sec', 'graduate']),
         )
         db.session.add(es)
 

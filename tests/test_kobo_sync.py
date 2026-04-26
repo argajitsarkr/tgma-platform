@@ -6,7 +6,8 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from etl.kobo_sync import validate_submission, map_submission, safe_float, safe_int, parse_date
+from etl.kobo_sync import (validate_submission, map_submission, safe_float, safe_int,
+                            parse_date, yn_to_bool)
 
 
 class TestValidateSubmission:
@@ -59,6 +60,31 @@ class TestValidateSubmission:
         }
         tid, error = validate_submission(sub)
         assert error is None  # Accepted — district derived from ID
+
+    def test_district_slug_accepted_v3(self):
+        """XLSForm v3 sends district as a slug (e.g. 'north_tripura'), not 2-letter code."""
+        for slug, tid in [
+            ('north_tripura', 'TGMA-NT-F-001'),
+            ('gomati', 'TGMA-GT-M-002'),
+            ('unakoti', 'TGMA-UK-F-003'),
+            ('west_tripura', 'TGMA-WT-F-004'),
+        ]:
+            sub = {'tracking_id': tid, 'full_name': 'Test', 'gender': tid.split('-')[2], 'district': slug}
+            _, error = validate_submission(sub)
+            assert error is None, f'{slug} should be accepted: {error}'
+
+    def test_district_other_rejected(self):
+        """Participants from outside Tripura (district=other on the form) cannot be enrolled
+        because tracking IDs only cover the 6 Tripura districts."""
+        sub = {
+            'tracking_id': 'TGMA-WT-F-001',
+            'full_name': 'Test',
+            'gender': 'F',
+            'district': 'other',
+        }
+        _, error = validate_submission(sub)
+        assert error is not None
+        assert 'other' in error.lower()
 
     def test_completely_invalid_gender_and_no_id_fallback(self):
         """If gender is wrong AND tracking_id has invalid gender, reject at format level."""
@@ -154,6 +180,50 @@ class TestMapSubmission:
         sub = self._make_submission(_id='67890')
         mapped, error = map_submission(sub)
         assert mapped['participant']['kobo_submission_id'] == '67890'
+
+
+class TestYnToBool:
+    """XLSForm `select_one yn` fields arrive as strings, not booleans.
+    Regression: `bool('no')` is True in Python — the old code stored every 'no'
+    answer as True. yn_to_bool fixes that.
+    """
+
+    def test_yes_variants(self):
+        assert yn_to_bool('yes') is True
+        assert yn_to_bool('YES') is True
+        assert yn_to_bool('Yes') is True
+        assert yn_to_bool(True) is True
+        assert yn_to_bool('1') is True
+
+    def test_no_variants(self):
+        assert yn_to_bool('no') is False
+        assert yn_to_bool('NO') is False
+        assert yn_to_bool(False) is False
+        assert yn_to_bool('0') is False
+
+    def test_blank_returns_none(self):
+        assert yn_to_bool(None) is None
+        assert yn_to_bool('') is None
+
+
+class TestHealthYnRegression:
+    """Verify yn_to_bool is wired into the health-screening mapping."""
+
+    def test_chronic_illness_no_string_stored_as_false(self):
+        sub = {
+            'tracking_id': 'TGMA-WT-F-0001',
+            'full_name': 'Riya Debbarma',
+            'gender': 'F',
+            'district': 'WT',
+            'chronic_illness': 'no',
+            'antibiotics_3mo': 'yes',
+            '_id': '1',
+            '_submission_time': '2026-04-15T10:00:00',
+        }
+        mapped, error = map_submission(sub)
+        assert error is None
+        assert mapped['health']['chronic_illness'] is False
+        assert mapped['health']['antibiotics_3mo'] is True
 
 
 class TestHelpers:

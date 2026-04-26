@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.utils.helpers import DISTRICT_CODES
 
 
 class Participant(db.Model):
@@ -12,7 +13,7 @@ class Participant(db.Model):
     dob = db.Column(db.Date, nullable=True)
     age = db.Column(db.Integer, nullable=True)
     gender = db.Column(db.String(1), nullable=False)  # M or F
-    district = db.Column(db.String(2), nullable=False)  # WT, ST, DL
+    district = db.Column(db.String(2), nullable=False)  # WT, ST, DL, NT, GT, UK
     village_town = db.Column(db.String(200), nullable=True)
     guardian_phone = db.Column(db.String(15), nullable=True)
 
@@ -59,7 +60,10 @@ class Participant(db.Model):
     # Constraints
     __table_args__ = (
         db.CheckConstraint("gender IN ('M', 'F')", name='ck_participants_gender'),
-        db.CheckConstraint("district IN ('WT', 'ST', 'DL')", name='ck_participants_district'),
+        db.CheckConstraint(
+            "district IN ('WT', 'ST', 'DL', 'NT', 'GT', 'UK')",
+            name='ck_participants_district'
+        ),
         db.CheckConstraint(
             "enrollment_status IN ('enrolled', 'completed', 'withdrawn', 'excluded')",
             name='ck_participants_status'
@@ -106,5 +110,4 @@ class Participant(db.Model):
 
     @property
     def display_district(self):
-        district_names = {'WT': 'West Tripura', 'ST': 'South Tripura', 'DL': 'Dhalai'}
-        return district_names.get(self.district, self.district)
+        return DISTRICT_CODES.get(self.district, self.district)

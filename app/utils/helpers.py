@@ -4,7 +4,8 @@ import re
 
 
 # Valid tracking ID pattern: TGMA-WT-F-037 (3 digits) or TGMA-WT-F-0037 (legacy 4 digits)
-TRACKING_ID_PATTERN = re.compile(r'^TGMA-(WT|ST|DL)-(M|F)-(\d{3,4})$')
+# Districts: WT/ST/DL (original) + NT/GT/UK (added in XLSForm v3, 2026-04)
+TRACKING_ID_PATTERN = re.compile(r'^TGMA-(WT|ST|DL|NT|GT|UK)-(M|F)-(\d{3,4})$')
 
 # Sample ID suffixes
 SAMPLE_SUFFIXES = {
@@ -19,7 +20,24 @@ SAMPLE_SUFFIXES = {
     'serum': 'SRM',
 }
 
-DISTRICT_CODES = {'WT': 'West Tripura', 'ST': 'South Tripura', 'DL': 'Dhalai'}
+DISTRICT_CODES = {
+    'WT': 'West Tripura',
+    'ST': 'South Tripura',
+    'DL': 'Dhalai',
+    'NT': 'North Tripura',
+    'GT': 'Gomati',
+    'UK': 'Unakoti',
+}
+
+# Maps XLSForm v3 district choice slugs -> 2-letter DB code
+DISTRICT_SLUG_TO_CODE = {
+    'west_tripura': 'WT',
+    'south_tripura': 'ST',
+    'dhalai': 'DL',
+    'north_tripura': 'NT',
+    'gomati': 'GT',
+    'unakoti': 'UK',
+}
 
 
 def validate_tracking_id(tracking_id):

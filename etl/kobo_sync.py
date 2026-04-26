@@ -30,7 +30,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app.extensions import db
 from app.models import (Participant, HealthScreening, Anthropometrics, MenstrualData,
                          LifestyleData, EnvironmentSES, KoboSyncLog)
-from app.utils.helpers import validate_tracking_id, validate_gps, validate_age
+from app.utils.helpers import (validate_tracking_id, validate_gps, validate_age,
+                                DISTRICT_CODES, DISTRICT_SLUG_TO_CODE)
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,22 @@ def safe_int(val):
         return None
 
 
+def yn_to_bool(val):
+    """XLSForm `select_one yn` fields arrive as the string 'yes'/'no', not as bool.
+    Returns True for 'yes', False for 'no', None for blank/missing.
+    """
+    if val is None or val == '':
+        return None
+    if isinstance(val, bool):
+        return val
+    s = str(val).strip().lower()
+    if s in ('yes', 'true', '1'):
+        return True
+    if s in ('no', 'false', '0'):
+        return False
+    return None
+
+
 def parse_date(val):
     if not val or val == '':
         return None
@@ -139,14 +156,24 @@ def validate_submission(submission):
         else:
             return tracking_id, f'{tracking_id}: Missing/invalid gender — skipped'
 
-    district = str(submission.get('district', '')).strip().upper()
-    if district not in ('WT', 'ST', 'DL'):
-        # Derive from tracking_id
-        parts = tracking_id.split('-')
-        if len(parts) >= 2 and parts[1] in ('WT', 'ST', 'DL'):
-            district = parts[1]
+    # XLSForm v3 sends the district as a slug (e.g. 'west_tripura', 'north_tripura').
+    # 'other' = participant from outside Tripura — not supported by tracking_id schema.
+    district_raw = str(submission.get('district', '')).strip().lower()
+    if district_raw == 'other':
+        return tracking_id, f'{tracking_id}: district=other not supported (tracking IDs cover only the 6 Tripura districts) — skipped'
+
+    district = DISTRICT_SLUG_TO_CODE.get(district_raw)
+    if not district:
+        # Tolerate older 2-letter values + fall back to deriving from tracking_id
+        upper = district_raw.upper()
+        if upper in DISTRICT_CODES:
+            district = upper
         else:
-            return tracking_id, f'{tracking_id}: Missing/invalid district — skipped'
+            parts = tracking_id.split('-')
+            if len(parts) >= 2 and parts[1] in DISTRICT_CODES:
+                district = parts[1]
+            else:
+                return tracking_id, f'{tracking_id}: Missing/invalid district — skipped'
 
     return tracking_id, None  # Valid
 
@@ -204,26 +231,30 @@ def map_submission(submission):
         'field_worker_name': str(submission.get('field_worker', '')).strip() or None,
         'gps_latitude': lat,
         'gps_longitude': lon,
-        'consent_parent': bool(submission.get('consent_parent')),
-        'assent_participant': bool(submission.get('assent_participant')),
-        'photo_consent': bool(submission.get('photo_consent')),
+        'consent_parent': yn_to_bool(submission.get('consent_parent')) or False,
+        'assent_participant': yn_to_bool(submission.get('assent_participant')) or False,
+        'photo_consent': yn_to_bool(submission.get('photo_consent')) or False,
         'kobo_submission_id': str(submission.get('_id', '')),
     }
 
     # --- Health screening (Part B) ---
     health_data = {
-        'chronic_illness': bool(submission.get('chronic_illness')),
-        'antibiotics_3mo': bool(submission.get('antibiotics_3mo')),
-        'hospital_3mo': bool(submission.get('hospital_3mo')),
-        'genetic_disorder': bool(submission.get('genetic_disorder')),
-        'pregnant': bool(submission.get('pregnant')),
-        'regular_medication': bool(submission.get('regular_medication')),
+        'chronic_illness': yn_to_bool(submission.get('chronic_illness')),
+        'antibiotics_3mo': yn_to_bool(submission.get('antibiotics_3mo')),
+        'hospital_3mo': yn_to_bool(submission.get('hospital_3mo')),
+        'genetic_disorder': yn_to_bool(submission.get('genetic_disorder')),
+        'pregnant': yn_to_bool(submission.get('pregnant')),
+        'regular_medication': yn_to_bool(submission.get('regular_medication')),
         'medication_details': str(submission.get('medication_details', '')).strip() or None,
         'fam_diabetes': submission.get('fam_diabetes'),
         'fam_obesity': submission.get('fam_obesity'),
         'fam_hypertension': submission.get('fam_hypertension'),
         'delivery_mode': submission.get('delivery_mode'),
-        'breastfed': bool(submission.get('breastfed')),
+        # XLSForm v3 `breastfed` is a select_one (exclusive/mixed/formula_only/dont_know),
+        # not a yes/no. True = breastfed at all (exclusive or mixed); False = formula_only;
+        # None = dont_know / missing. Stored as bool for back-compat with the model column.
+        'breastfed': (lambda v: True if v in ('exclusive', 'mixed')
+                      else False if v == 'formula_only' else None)(submission.get('breastfed')),
         'bf_duration': submission.get('bf_duration'),
     }
 
@@ -253,7 +284,7 @@ def map_submission(submission):
         'pss_confident': safe_int(submission.get('pss_confident')),
         'pss_going_well': safe_int(submission.get('pss_going_well')),
         'pss_overwhelmed': safe_int(submission.get('pss_overwhelmed')),
-        'passive_smoke': bool(submission.get('passive_smoke')) if submission.get('passive_smoke') is not None else None,
+        'passive_smoke': yn_to_bool(submission.get('passive_smoke')),
     }
 
     # --- Environment & SES (Part F) ---
@@ -271,7 +302,7 @@ def map_submission(submission):
     menstrual_data = None
     if gender == 'F' and submission.get('menstruation_started') is not None:
         menstrual_data = {
-            'menstruation_started': bool(submission.get('menstruation_started')),
+            'menstruation_started': yn_to_bool(submission.get('menstruation_started')),
             'menarche_age': safe_int(submission.get('menarche_age')),
             'cycle_regularity': submission.get('cycle_regularity'),
         }
