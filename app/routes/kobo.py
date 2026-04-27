@@ -100,3 +100,28 @@ def log_detail(log_id):
             details = []
 
     return render_template('kobo/log_detail.html', log=log, details=details)
+
+
+@kobo_bp.route('/log/<int:log_id>/delete', methods=['POST'])
+@login_required
+@role_required('pi', 'co_pi', 'bioinformatician')
+def delete_log(log_id):
+    """Delete a single sync-history row. Audit trail only — does not affect
+    participants or sample data."""
+    log = KoboSyncLog.query.get_or_404(log_id)
+    db.session.delete(log)
+    db.session.commit()
+    flash(f'Deleted sync run #{log_id}.', 'success')
+    return redirect(url_for('kobo.index'))
+
+
+@kobo_bp.route('/logs/clear', methods=['POST'])
+@login_required
+@role_required('pi', 'co_pi', 'bioinformatician')
+def clear_logs():
+    """Delete every sync-history row. Audit trail only — does not affect
+    participants or sample data. Confirm-gated in the UI."""
+    n = KoboSyncLog.query.delete()
+    db.session.commit()
+    flash(f'Cleared {n} sync run{"s" if n != 1 else ""} from history.', 'success')
+    return redirect(url_for('kobo.index'))

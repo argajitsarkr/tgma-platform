@@ -1,12 +1,16 @@
+import logging
 from collections import OrderedDict
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required
 from datetime import date
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.extensions import db
 from app.models import Sample, Participant
 from app.utils.decorators import role_required
 from app.utils.helpers import generate_sample_id
+
+logger = logging.getLogger(__name__)
 
 samples_bp = Blueprint('samples', __name__, url_prefix='/samples')
 
@@ -80,7 +84,26 @@ def register():
             registered.append(sample_id)
 
         if registered:
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError as e:
+                db.session.rollback()
+                # Most likely cause: a CHECK constraint on the deployed DB lags
+                # behind the model (e.g. ck_samples_type missing 'saliva_cortisol').
+                # Run scripts/upgrade_sample_type_constraint.py on the server.
+                logger.exception(f'IntegrityError registering samples for {tracking_id}')
+                flash(
+                    'Could not register samples — database constraint violation. '
+                    'A platform admin should run scripts/upgrade_sample_type_constraint.py '
+                    'on the server. Details: ' + str(getattr(e, "orig", e)),
+                    'danger',
+                )
+                return redirect(url_for('samples.register'))
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                logger.exception(f'DB error registering samples for {tracking_id}')
+                flash(f'Could not register samples — database error: {e}', 'danger')
+                return redirect(url_for('samples.register'))
             flash(f'Registered {len(registered)} samples: {", ".join(registered)}', 'success')
 
         return redirect(url_for('participants.detail', tracking_id=tracking_id))

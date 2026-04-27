@@ -48,7 +48,20 @@
 <div class="tgma-card mb-4">
     <div class="tgma-card-header">
         <span><i class="bi bi-clock-history"></i> Sync History</span>
-        <span class="badge-tgma badge-info">{{ logs | length }} runs</span>
+        <span style="display:flex;align-items:center;gap:0.5rem;">
+            <span class="badge-tgma badge-info">{{ logs | length }} runs</span>
+            {% if logs and current_user.role in ('pi', 'co_pi', 'bioinformatician') %}
+            <form method="POST" action="{{ url_for('kobo.clear_logs') }}"
+                  onsubmit="return confirm('Permanently delete all {{ logs | length }} sync history row(s)? Participant and sample data are NOT affected.');"
+                  style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-tgma-outline btn-sm"
+                        style="padding:0.2rem 0.55rem;font-size:0.75rem;color:#991B1B;border-color:#991B1B;">
+                    <i class="bi bi-trash"></i> Clear all history
+                </button>
+            </form>
+            {% endif %}
+        </span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -100,10 +113,22 @@
                             —
                         {% endif %}
                     </td>
-                    <td>
+                    <td style="white-space:nowrap;">
                         <a href="{{ url_for('kobo.log_detail', log_id=log.id) }}" class="btn btn-tgma-outline btn-sm" style="padding:0.2rem 0.5rem;font-size:0.75rem;">
                             <i class="bi bi-eye"></i> Details
                         </a>
+                        {% if current_user.role in ('pi', 'co_pi', 'bioinformatician') %}
+                        <form method="POST" action="{{ url_for('kobo.delete_log', log_id=log.id) }}"
+                              onsubmit="return confirm('Delete sync run #{{ log.id }} from history?');"
+                              style="display:inline-block;margin:0;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-tgma-outline btn-sm"
+                                    title="Delete this sync run from history"
+                                    style="padding:0.2rem 0.45rem;font-size:0.75rem;color:#991B1B;border-color:#991B1B;">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}

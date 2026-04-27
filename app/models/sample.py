@@ -56,7 +56,8 @@ class Sample(db.Model):
 
     __table_args__ = (
         db.CheckConstraint(
-            "sample_type IN ('stool', 'blood', 'saliva_1', 'saliva_2', 'saliva_3', 'saliva_4', 'dna_extract', 'serum')",
+            "sample_type IN ('stool', 'blood', 'saliva_1', 'saliva_2', 'saliva_3', 'saliva_4', "
+            "'saliva_cortisol', 'dna_extract', 'serum')",
             name='ck_samples_type'
         ),
         db.CheckConstraint(

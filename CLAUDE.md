@@ -355,6 +355,17 @@ Setting `@page { size: 50mm 25mm }` has no effect if the printer driver doesn't 
 
 **Fix**: Flatten the submission dict before any field reads. Strip everything before the last `/` (XLSForm field names are globally unique within a form, so last-segment-wins is safe). Always preserve keys starting with `_` (Kobo metadata). See `flatten_kobo_submission()` in `etl/kobo_sync.py` — it's idempotent, so calling it on already-flat dicts is a no-op.
 
+### 25. CHECK constraints aren't updated by `db.create_all()` on existing DBs
+**Symptom**: A previously-working route suddenly returns 500 after a model change. Logs show `IntegrityError: new row for relation "X" violates check constraint "ck_X_..."`. Fresh dev DBs work fine; only the deployed instance fails.
+
+**Cause**: SQLAlchemy `db.CheckConstraint(...)` inside `__table_args__` is only emitted by `CREATE TABLE` — i.e. the first time `db.create_all()` runs against an empty DB. Modifying the constraint in code does NOT alter an already-existing table. So when a new sample type / role / status / district code is added to the allowed list in models + routes, every deployed PostgreSQL instance keeps the old constraint and rejects inserts that the dev environment accepts.
+
+**Real-world hit**: `Register Samples` started 500-ing after the workflow was simplified to `[stool, saliva_cortisol]` because the existing CHECK on `samples.sample_type` still only allowed `stool/blood/saliva_1..4/dna_extract/serum`. The model was updated but the deployed DB was not.
+
+**Fix pattern** (project doesn't use Alembic — see mistake #17): pair every `__table_args__` CHECK change with a one-shot script `scripts/upgrade_<thing>_constraint.py` that does `ALTER TABLE ... DROP CONSTRAINT IF EXISTS ...; ALTER TABLE ... ADD CONSTRAINT ... CHECK (...);` inside an app context. Idempotent, safe to re-run. Runs as `sudo docker compose exec web python scripts/upgrade_<thing>_constraint.py` on the deployed server. Existing examples: `upgrade_district_constraint.py`, `upgrade_sample_type_constraint.py`.
+
+Also: wrap any insert/update route that touches a constrained column in `try/except IntegrityError` + rollback + flash a useful message — surfacing the underlying error beats a bare 500.
+
 ---
 
 ## Architecture Rules
@@ -454,7 +465,8 @@ Setting `@page { size: 50mm 25mm }` has no effect if the printer driver doesn't 
 
 ## Git History (as of April 2026)
 ```
-(pending) Align platform to XLSForm v4.1; fix silent KoboSync bug (group-prefixed JSON keys, mistake #24)
+(pending) Fix Register Samples 500 (CHECK ck_samples_type missing saliva_cortisol, mistake #25); add per-row + clear-all delete to /kobo Sync History
+afba56f Fix silent KoboSync bug (group-prefixed JSON keys, mistake #24); align platform to XLSForm v4.1
 27f9eea Align platform to KoboToolbox XLSForm v3 (NT/GT/UK districts, slug-aware sync, yn_to_bool fix)
 560ca7a Update CLAUDE.md: full how-it-works narrative, label printing details, mistake #22-23
 2749d22 Split Consent + Assent into separate labels (9 → 10 per participant)
