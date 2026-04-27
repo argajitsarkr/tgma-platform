@@ -108,8 +108,9 @@ def generate_synthetic_data(count=50):
             guardian_phone=f'9{random.randint(100000000, 999999999)}',
             school_class=f'Class {random.randint(7, 12)}',
             religion=random.choice(['Hindu', 'Christian', 'Muslim', 'Buddhist']),
-            community_tribe=random.choice(['Bengali', 'Tripuri', 'Reang', 'Jamatia', 'Chakma']),
-            mother_tongue=random.choice(['Bengali', 'Kokborok', 'Hindi']),
+            # XLSForm v4.1 slugs (community / mother_tongue choice lists)
+            community_tribe=random.choice(['bengali', 'tripuri', 'reang', 'jamatia', 'chakma']),
+            mother_tongue=random.choice(['bengali', 'kokborok', 'hindi']),
             lifestyle_group_assigned=random.choice(lifestyles),
             enrollment_date=date.today() - timedelta(days=random.randint(1, 90)),
             enrollment_status='enrolled',
@@ -129,7 +130,8 @@ def generate_synthetic_data(count=50):
             hospital_3mo=False,
             delivery_mode=random.choice(['vaginal', 'csection']),
             breastfed=random.choice([True, True, True, False]),
-            bf_duration=random.choice(['lt_6mo', '6_12mo', '1_2yr', 'gt_2yr']),
+            # XLSForm v4.1 breastfeeding_duration slugs
+            bf_duration=random.choice(['lt_6m', '6_12m', '1_2y', 'gt_2y']),
         )
         db.session.add(hs)
 
@@ -193,7 +195,8 @@ def generate_synthetic_data(count=50):
             water_source=random.choice(['municipal', 'tubewell', 'spring', 'packaged', 'rainwater']),
             cooking_fuel=random.choice(['lpg', 'firewood', 'electric', 'kerosene']),
             toilet_type=random.choice(['flush', 'pit', 'none']),
-            household_income=random.choice(['lt10k', '10_25k', '25_50k', '50_100k', 'gt100k']),
+            # XLSForm v4.1 income_bracket slugs
+            household_income=random.choice(['le_10k', '10k_25k', '25k_50k', '50k_100k', 'gt_100k']),
             household_size=random.randint(3, 8),
             father_edu=random.choice(['none', 'primary', 'secondary', 'higher_sec', 'graduate']),
             mother_edu=random.choice(['none', 'primary', 'secondary', 'higher_sec', 'graduate']),

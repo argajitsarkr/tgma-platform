@@ -105,8 +105,8 @@ def safe_int(val):
 
 
 def yn_to_bool(val):
-    """XLSForm `select_one yn` fields arrive as the string 'yes'/'no', not as bool.
-    Returns True for 'yes', False for 'no', None for blank/missing.
+    """XLSForm `select_one yes_no` fields arrive as the string 'yes'/'no', not as bool.
+    Returns True for 'yes', False for 'no', None for blank/missing/'dk'/'na'.
     """
     if val is None or val == '':
         return None
@@ -117,7 +117,72 @@ def yn_to_bool(val):
         return True
     if s in ('no', 'false', '0'):
         return False
-    return None
+    return None  # 'dk', 'na', 'declined', etc.
+
+
+# ---------------------------------------------------------------------------
+# v4.1 form helpers — group-prefix flattening + slug-to-value lookups
+# ---------------------------------------------------------------------------
+
+def flatten_kobo_submission(sub):
+    """KoboToolbox API v2 returns grouped XLSForm fields with the group path
+    prefixed: e.g. `part_a/tracking_id`, `part_b/b1/b1_chronic_illness`. The
+    rest of this module reads bare field names, so flatten the dict.
+
+    Last-segment-wins on collisions, which is safe because XLSForm field names
+    are globally unique within a form. Reserved Kobo metadata keys (start with
+    '_' or contain a colon) are passed through untouched.
+
+    Idempotent: a submission with already-flat keys round-trips unchanged.
+    """
+    if not isinstance(sub, dict):
+        return sub
+    out = {}
+    for k, v in sub.items():
+        if not isinstance(k, str) or k.startswith('_') or ':' in k:
+            out[k] = v
+        else:
+            out[k.rsplit('/', 1)[-1]] = v
+    return out
+
+
+def _first(sub, *names, default=None):
+    """Return the first present, non-empty value from `sub` for any of `names`.
+    Used to read fields by their v4.1 name with v3 name as fallback."""
+    for n in names:
+        if n in sub:
+            v = sub[n]
+            if v is not None and v != '':
+                return v
+    return default
+
+
+# Slug → midpoint number for v4.1 select_one fields that target numeric DB columns.
+SITTING_HOURS_MIDPOINT = {'lt_2': 1.0, '2_4': 3.0, '4_6': 5.0, '6_8': 7.0, 'gt_8': 9.0}
+SCREEN_TOTAL_MIDPOINT  = {'lt_1': 0.5, '1_2': 1.5, '2_4': 3.0, '4_6': 5.0, 'gt_6': 7.0}
+MEALS_PER_DAY_MIDPOINT = {'1_2': 2,   '3': 3, '3_plus_snacks': 3, '4_plus': 4}
+FAMILY_SIZE_MIDPOINT   = {'2_3': 3,   '4_5': 5, '6_7': 7, '8_plus': 8}
+CLASS_GRADE_LABEL      = {f'class_{n}': f'Class {n}' for n in range(7, 13)}
+GENDER_SLUG_TO_CODE    = {'male': 'M', 'female': 'F', 'm': 'M', 'f': 'F'}
+DELIVERY_MODE_NORMALIZE = {'c_section': 'csection'}  # back-compat with v3 stored values
+BREASTFED_TO_BOOL      = {'exclusive': True, 'mixed': True, 'formula': False, 'formula_only': False}
+
+
+def _slug_or_number(val, slug_map):
+    """If `val` is a slug in `slug_map`, return the mapped number.
+    If `val` is already a number-like string/int/float, coerce to int/float.
+    Returns None on missing or unrecognized."""
+    if val is None or val == '':
+        return None
+    s = str(val).strip()
+    if s in slug_map:
+        return slug_map[s]
+    # Try numeric coercion (in case form is older or value is already numeric)
+    try:
+        f = float(s)
+        return int(f) if f.is_integer() else f
+    except (ValueError, TypeError):
+        return None
 
 
 def parse_date(val):
@@ -134,7 +199,12 @@ def validate_submission(submission):
 
     A submission is REJECTED if any of: tracking_id, full_name, gender, district is missing.
     Optional fields (age, GPS, anthropometrics, etc.) are accepted as NULL.
+
+    Group-prefixed Kobo keys (`part_a/tracking_id`, …) are flattened first, so this
+    works with v4.1 (heavy grouping) and earlier flat forms alike.
     """
+    submission = flatten_kobo_submission(submission)
+
     tracking_id = str(submission.get('tracking_id', '')).strip().upper()
     if not tracking_id:
         kobo_id = submission.get('_id', '?')
@@ -147,28 +217,32 @@ def validate_submission(submission):
     if not full_name:
         return tracking_id, f'{tracking_id}: Missing full_name — skipped'
 
-    gender = str(submission.get('gender', '')).strip().upper()
+    # v4.1 sends gender slug 'male'/'female'; v3 and earlier sent 'M'/'F'. Accept both.
+    gender_raw = str(submission.get('gender', '')).strip().lower()
+    gender = GENDER_SLUG_TO_CODE.get(gender_raw)
     if gender not in ('M', 'F'):
-        # Try to derive from tracking_id (TGMA-WT-F-0001 → F)
+        # Fallback: derive from tracking_id (TGMA-WT-F-0001 → F)
         parts = tracking_id.split('-')
         if len(parts) >= 3 and parts[2] in ('M', 'F'):
             gender = parts[2]
         else:
             return tracking_id, f'{tracking_id}: Missing/invalid gender — skipped'
 
-    # XLSForm v3 sends the district as a slug (e.g. 'west_tripura', 'north_tripura').
-    # 'other' = participant from outside Tripura — not supported by tracking_id schema.
+    # Districts:
+    #   v4.1: 2-letter code directly ('WT', 'NT', …)
+    #   v3:   slug ('west_tripura', 'north_tripura', …) or 'other' for non-Tripura
     district_raw = str(submission.get('district', '')).strip().lower()
     if district_raw == 'other':
         return tracking_id, f'{tracking_id}: district=other not supported (tracking IDs cover only the 6 Tripura districts) — skipped'
 
     district = DISTRICT_SLUG_TO_CODE.get(district_raw)
     if not district:
-        # Tolerate older 2-letter values + fall back to deriving from tracking_id
+        # Try uppercase 2-letter (v4.1 path)
         upper = district_raw.upper()
         if upper in DISTRICT_CODES:
             district = upper
         else:
+            # Last resort: derive from tracking_id
             parts = tracking_id.split('-')
             if len(parts) >= 2 and parts[1] in DISTRICT_CODES:
                 district = parts[1]
@@ -183,34 +257,76 @@ def map_submission(submission):
 
     Returns (mapped_dict, None) on success, (None, error_string) on validation failure.
     Optional sections that are empty come through as NULL — that's fine.
+
+    Reads v4.1 field names first; falls back to v3/earlier names so older submissions
+    in the same backfill still parse.
     """
-    # --- Critical field validation ---
+    submission = flatten_kobo_submission(submission)
+
+    # --- Critical field validation (also flattens internally — safe to re-call) ---
     tracking_id, error = validate_submission(submission)
     if error:
         return None, error
 
     # --- Parse all fields (NULLs are OK for optional ones) ---
-    age = safe_int(submission.get('age'))
+    age = safe_int(_first(submission, 'age_years', 'age'))
     if age is not None and not validate_age(age):
         return None, f'{tracking_id}: Age {age} outside study range 12-18 — skipped'
 
-    # GPS — optional, but if present must be within Tripura bounds
-    geoloc = submission.get('_geolocation', [None, None])
+    # GPS — v4.1 has `gps_location` (single geopoint string "lat lon alt acc"),
+    # KoboToolbox also exposes parsed `_geolocation: [lat, lon]`.
+    geoloc = submission.get('_geolocation') or [None, None]
     lat = geoloc[0] if geoloc and len(geoloc) > 0 else None
     lon = geoloc[1] if geoloc and len(geoloc) > 1 else None
-    lat = lat or safe_float(submission.get('gps_latitude'))
-    lon = lon or safe_float(submission.get('gps_longitude'))
+    if lat is None or lon is None:
+        # Try parsing the geopoint string from gps_location
+        gps_str = submission.get('gps_location') or ''
+        if gps_str:
+            parts = str(gps_str).split()
+            if len(parts) >= 2:
+                lat = lat or safe_float(parts[0])
+                lon = lon or safe_float(parts[1])
+    lat = lat if lat is not None else safe_float(submission.get('gps_latitude'))
+    lon = lon if lon is not None else safe_float(submission.get('gps_longitude'))
 
     if lat is not None and lon is not None:
         if not validate_gps(lat, lon):
-            # GPS out of bounds is a WARNING, not a rejection — accept with flag
             logger.warning(f'{tracking_id}: GPS ({lat}, {lon}) outside Tripura bounds — accepted anyway')
 
-    gender = str(submission.get('gender', '')).strip().upper()
+    # Gender (revalidated for use here; validate_submission already checked)
+    gender = GENDER_SLUG_TO_CODE.get(str(submission.get('gender', '')).strip().lower())
     if gender not in ('M', 'F'):
         gender = tracking_id.split('-')[2] if len(tracking_id.split('-')) >= 3 else 'M'
 
     district = tracking_id.split('-')[1] if len(tracking_id.split('-')) >= 2 else ''
+
+    # School: v4.1 splits into name + class_grade slug; concatenate into the existing column.
+    school_name = str(_first(submission, 'school_name', default='') or '').strip()
+    class_grade = str(_first(submission, 'class_grade', default='') or '').strip().lower()
+    class_label = CLASS_GRADE_LABEL.get(class_grade, '')
+    if school_name and class_label:
+        school_class = f'{school_name} — {class_label}'
+    elif school_name:
+        school_class = school_name
+    elif class_label:
+        school_class = class_label
+    else:
+        school_class = str(_first(submission, 'school_class', default='') or '').strip() or None
+
+    # Free-text "other" overrides for slug-coded fields
+    religion = _first(submission, 'religion')
+    if religion == 'other':
+        religion = _first(submission, 'religion_other', default='other')
+    community = _first(submission, 'community_tribe')
+    if community == 'other':
+        community = _first(submission, 'community_other', default='other')
+    mtongue = _first(submission, 'mother_tongue')
+    if mtongue == 'other':
+        mtongue = _first(submission, 'mother_tongue_other', default='other')
+
+    # Enrollment date: prefer v4.1 `assessment_date`, else KoboToolbox metadata.
+    enrollment_date = parse_date(_first(submission, 'assessment_date', default='')) \
+        or parse_date(str(submission.get('_submission_time', '')).split('T')[0])
 
     # --- Participant (demographics) ---
     participant_data = {
@@ -219,92 +335,95 @@ def map_submission(submission):
         'age': age,
         'gender': gender,
         'district': district,
-        'dob': parse_date(submission.get('dob')),
-        'village_town': str(submission.get('village_town', '')).strip() or None,
-        'guardian_phone': str(submission.get('guardian_phone', '')).strip() or None,
-        'school_class': str(submission.get('school_class', '')).strip() or None,
-        'religion': str(submission.get('religion', '')).strip() or None,
-        'community_tribe': str(submission.get('community_tribe', '')).strip() or None,
-        'mother_tongue': str(submission.get('mother_tongue', '')).strip() or None,
-        'enrollment_date': parse_date(submission.get('_submission_time', '').split('T')[0]),
+        'dob': parse_date(_first(submission, 'date_of_birth', 'dob')),
+        'village_town': str(_first(submission, 'village_town_ward', 'village_town', default='') or '').strip() or None,
+        'guardian_phone': str(_first(submission, 'guardian_phone', default='') or '').strip() or None,
+        'school_class': school_class,
+        'religion': str(religion).strip() if religion else None,
+        'community_tribe': str(community).strip() if community else None,
+        'mother_tongue': str(mtongue).strip() if mtongue else None,
+        'enrollment_date': enrollment_date,
         'enrollment_status': 'enrolled',
-        'field_worker_name': str(submission.get('field_worker', '')).strip() or None,
+        'field_worker_name': str(_first(submission, 'kobo_username', 'field_worker', default='') or '').strip() or None,
         'gps_latitude': lat,
         'gps_longitude': lon,
-        'consent_parent': yn_to_bool(submission.get('consent_parent')) or False,
-        'assent_participant': yn_to_bool(submission.get('assent_participant')) or False,
-        'photo_consent': yn_to_bool(submission.get('photo_consent')) or False,
+        'consent_parent': yn_to_bool(_first(submission, 'consent_signed_paper', 'consent_parent')) or False,
+        'assent_participant': yn_to_bool(_first(submission, 'assent_signed_paper', 'assent_participant')) or False,
+        'photo_consent': yn_to_bool(_first(submission, 'photo_consent')) or False,
         'kobo_submission_id': str(submission.get('_id', '')),
     }
 
     # --- Health screening (Part B) ---
+    delivery_raw = _first(submission, 'b3_delivery_mode', 'delivery_mode')
+    delivery_mode = DELIVERY_MODE_NORMALIZE.get(delivery_raw, delivery_raw) if delivery_raw else None
+    breastfed_raw = _first(submission, 'b3_breastfed', 'breastfed')
     health_data = {
-        'chronic_illness': yn_to_bool(submission.get('chronic_illness')),
-        'antibiotics_3mo': yn_to_bool(submission.get('antibiotics_3mo')),
-        'hospital_3mo': yn_to_bool(submission.get('hospital_3mo')),
-        'genetic_disorder': yn_to_bool(submission.get('genetic_disorder')),
-        'pregnant': yn_to_bool(submission.get('pregnant')),
-        'regular_medication': yn_to_bool(submission.get('regular_medication')),
-        'medication_details': str(submission.get('medication_details', '')).strip() or None,
-        'fam_diabetes': submission.get('fam_diabetes'),
-        'fam_obesity': submission.get('fam_obesity'),
-        'fam_hypertension': submission.get('fam_hypertension'),
-        'delivery_mode': submission.get('delivery_mode'),
-        # XLSForm v3 `breastfed` is a select_one (exclusive/mixed/formula_only/dont_know),
-        # not a yes/no. True = breastfed at all (exclusive or mixed); False = formula_only;
-        # None = dont_know / missing. Stored as bool for back-compat with the model column.
-        'breastfed': (lambda v: True if v in ('exclusive', 'mixed')
-                      else False if v == 'formula_only' else None)(submission.get('breastfed')),
-        'bf_duration': submission.get('bf_duration'),
+        'chronic_illness':    yn_to_bool(_first(submission, 'b1_chronic_illness', 'chronic_illness')),
+        'antibiotics_3mo':    yn_to_bool(_first(submission, 'b1_recent_antibiotics', 'antibiotics_3mo')),
+        'hospital_3mo':       yn_to_bool(_first(submission, 'b1_recent_hospital', 'hospital_3mo')),
+        'genetic_disorder':   yn_to_bool(_first(submission, 'b1_genetic_disorder', 'genetic_disorder')),
+        'pregnant':           yn_to_bool(_first(submission, 'b1_pregnant', 'pregnant')),
+        'regular_medication': yn_to_bool(_first(submission, 'b1_regular_medication', 'regular_medication')),
+        'medication_details': str(_first(submission, 'b1_medication_specify', 'medication_details', default='') or '').strip() or None,
+        'fam_diabetes':       _first(submission, 'fh_t2_diabetes', 'fam_diabetes'),
+        'fam_obesity':        _first(submission, 'fh_obesity', 'fam_obesity'),
+        'fam_hypertension':   _first(submission, 'fh_hypertension', 'fam_hypertension'),
+        'delivery_mode':      delivery_mode,
+        # breastfeeding_status slug → bool; v3 `formula_only` also recognized.
+        'breastfed':          BREASTFED_TO_BOOL.get(breastfed_raw) if breastfed_raw else None,
+        'bf_duration':        _first(submission, 'b3_breastfeed_duration', 'bf_duration'),
     }
 
-    # --- Anthropometrics (Part G) — field worker may fill this later ---
+    # --- Anthropometrics (Part F.anthro in v4.1, Part G in v3) ---
     anthro_data = {
-        'height_cm': safe_float(submission.get('height_cm')),
-        'weight_kg': safe_float(submission.get('weight_kg')),
-        'waist_cm': safe_float(submission.get('waist_cm')),
-        'hip_cm': safe_float(submission.get('hip_cm')),
-        'bp_systolic': safe_int(submission.get('bp_systolic')),
-        'bp_diastolic': safe_int(submission.get('bp_diastolic')),
-        'heart_rate': safe_int(submission.get('heart_rate')),
+        'height_cm':  safe_float(_first(submission, 'anthro_height_cm', 'height_cm')),
+        'weight_kg':  safe_float(_first(submission, 'anthro_weight_kg', 'weight_kg')),
+        'waist_cm':   safe_float(_first(submission, 'anthro_waist_cm', 'waist_cm')),
+        'hip_cm':     safe_float(_first(submission, 'anthro_hip_cm', 'hip_cm')),
+        'bp_systolic':  safe_int(_first(submission, 'anthro_bp_systolic', 'bp_systolic')),
+        'bp_diastolic': safe_int(_first(submission, 'anthro_bp_diastolic', 'bp_diastolic')),
+        'heart_rate':   safe_int(_first(submission, 'anthro_resting_hr', 'heart_rate')),
         'tanner_stage': safe_int(submission.get('tanner_stage')),
-        'measurement_date': parse_date(submission.get('_submission_time', '').split('T')[0]),
+        'measurement_date': enrollment_date,
     }
 
-    # --- Lifestyle & FFQ (Part D/E) ---
+    # --- Lifestyle & FFQ (Part C in v4.1) ---
+    # v4.1 turned several previously-numeric fields into slug-coded select_one.
+    # _slug_or_number maps slug → midpoint numeric; legacy numeric values pass through.
     lifestyle_data = {
-        'vigorous_activity': submission.get('vigorous_activity'),
-        'moderate_activity': submission.get('moderate_activity'),
-        'sedentary_weekday': safe_float(submission.get('sedentary_weekday')),
-        'sedentary_weekend': safe_float(submission.get('sedentary_weekend')),
-        'meals_per_day': safe_int(submission.get('meals_per_day')),
-        'sleep_quality': submission.get('sleep_quality'),
-        'daily_screen': safe_float(submission.get('daily_screen')),
-        'pss_control': safe_int(submission.get('pss_control')),
-        'pss_confident': safe_int(submission.get('pss_confident')),
-        'pss_going_well': safe_int(submission.get('pss_going_well')),
-        'pss_overwhelmed': safe_int(submission.get('pss_overwhelmed')),
-        'passive_smoke': yn_to_bool(submission.get('passive_smoke')),
+        'vigorous_activity': _first(submission, 'c1_vigorous_days', 'vigorous_activity'),
+        'moderate_activity': _first(submission, 'c1_moderate_days', 'moderate_activity'),
+        'sedentary_weekday': _slug_or_number(_first(submission, 'c1_sitting_weekday', 'sedentary_weekday'), SITTING_HOURS_MIDPOINT),
+        'sedentary_weekend': _slug_or_number(_first(submission, 'c1_sitting_weekend', 'sedentary_weekend'), SITTING_HOURS_MIDPOINT),
+        'meals_per_day':     _slug_or_number(_first(submission, 'c3_meals_per_day', 'meals_per_day'), MEALS_PER_DAY_MIDPOINT),
+        'sleep_quality':     _first(submission, 'c4_sleep_quality', 'sleep_quality'),
+        'daily_screen':      _slug_or_number(_first(submission, 'c4_screen_total', 'daily_screen'), SCREEN_TOTAL_MIDPOINT),
+        'pss_control':       safe_int(_first(submission, 'c5_q1', 'pss_control')),
+        'pss_confident':     safe_int(_first(submission, 'c5_q2', 'pss_confident')),
+        'pss_going_well':    safe_int(_first(submission, 'c5_q3', 'pss_going_well')),
+        'pss_overwhelmed':   safe_int(_first(submission, 'c5_q4', 'pss_overwhelmed')),
+        'passive_smoke':     yn_to_bool(_first(submission, 'c6_household_smoke', 'passive_smoke')),
     }
 
-    # --- Environment & SES (Part F) ---
+    # --- Environment & SES (Part D in v4.1) ---
     env_data = {
-        'water_source': submission.get('water_source'),
-        'cooking_fuel': submission.get('cooking_fuel'),
-        'toilet_type': submission.get('toilet_type'),
-        'household_income': submission.get('household_income'),
-        'household_size': safe_int(submission.get('household_size')),
-        'father_edu': submission.get('father_edu'),
-        'mother_edu': submission.get('mother_edu'),
+        'water_source':     _first(submission, 'd1_water_source', 'water_source'),
+        'cooking_fuel':     _first(submission, 'd1_cooking_fuel', 'cooking_fuel'),
+        'toilet_type':      _first(submission, 'd1_toilet', 'toilet_type'),
+        'household_income': _first(submission, 'd2_income', 'household_income'),
+        'household_size':   _slug_or_number(_first(submission, 'd2_family_size', 'household_size'), FAMILY_SIZE_MIDPOINT),
+        'father_edu':       _first(submission, 'd2_father_education', 'father_edu'),
+        'mother_edu':       _first(submission, 'd2_mother_education', 'mother_edu'),
     }
 
-    # --- Menstrual data (Part C, girls only) ---
+    # --- Menstrual data (Part E, girls only) ---
     menstrual_data = None
-    if gender == 'F' and submission.get('menstruation_started') is not None:
+    menarche_raw = _first(submission, 'e_menarche', 'menstruation_started')
+    if gender == 'F' and menarche_raw is not None:
         menstrual_data = {
-            'menstruation_started': yn_to_bool(submission.get('menstruation_started')),
-            'menarche_age': safe_int(submission.get('menarche_age')),
-            'cycle_regularity': submission.get('cycle_regularity'),
+            'menstruation_started': yn_to_bool(menarche_raw),
+            'menarche_age':         safe_int(_first(submission, 'e_menarche_age', 'menarche_age')),
+            'cycle_regularity':     _first(submission, 'e_cycle_regular', 'cycle_regularity'),
         }
 
     return {

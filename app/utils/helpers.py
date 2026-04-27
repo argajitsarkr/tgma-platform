@@ -29,7 +29,8 @@ DISTRICT_CODES = {
     'UK': 'Unakoti',
 }
 
-# Maps XLSForm v3 district choice slugs -> 2-letter DB code
+# Maps XLSForm district choice values -> 2-letter DB code.
+# Includes both v3 slugs (`west_tripura`) and v4.1 direct 2-letter (lowercased).
 DISTRICT_SLUG_TO_CODE = {
     'west_tripura': 'WT',
     'south_tripura': 'ST',
@@ -37,6 +38,8 @@ DISTRICT_SLUG_TO_CODE = {
     'north_tripura': 'NT',
     'gomati': 'GT',
     'unakoti': 'UK',
+    # v4.1 sends the 2-letter code directly
+    'wt': 'WT', 'st': 'ST', 'dl': 'DL', 'nt': 'NT', 'gt': 'GT', 'uk': 'UK',
 }
 
 

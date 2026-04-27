@@ -4,7 +4,9 @@
 TGMA (Tripura Gut Microbiome in Adolescents) — Flask 3.1 research data management platform.
 ICMR-funded study at Tripura University. Self-hosted on Dell PowerEdge R730, LAN-only, Docker deployment.
 
-**Status (April 2026)**: Platform is **feature-complete and actively field-testing**. 65+ source files, 44 tests passing, Docker deployment live. All core workflows operational: participant ID allocation → thermal label printing → KoboCollect field data entry → KoboToolbox sync → dashboard review → document vault upload.
+**Status (April 2026)**: Platform is **feature-complete and actively field-testing**. 65+ source files, 56 tests passing, Docker deployment live. All core workflows operational: participant ID allocation → thermal label printing → KoboCollect field data entry → KoboToolbox sync → dashboard review → document vault upload.
+
+Active KoboToolbox form: **XLSForm v4.1** (`tgma_v4_1` version `2026-04-27-v4.1`). The platform sync layer reads v4.1 field names with v3/earlier names as fallback; group-prefixed Kobo paths are flattened first (see mistake #24).
 
 ---
 
@@ -346,6 +348,13 @@ Thermal printers compress fine bars of Code128 barcodes, making them unreadable 
 ### 23. `@page` CSS size must match printer driver's available paper sizes
 Setting `@page { size: 50mm 25mm }` has no effect if the printer driver doesn't offer that size. The actual sticker is 25mm tall but the closest driver option is "E 50 x 30 mm". Set `@page` to 50x30mm to match the driver, then constrain content to 25mm with an inner container. The 5mm difference falls on the inter-label gap.
 
+### 24. KoboToolbox API returns group-prefixed field paths — sync silently fails without flattening
+**Symptom**: "Sync Now" reports success, the per-run log card shows `inserted=0, updated=0, skipped=N`, every detail row says `Missing tracking_id — skipped`, and field-test data never appears on `/participants`. The sync_log row is `status='success'` because each rejection is caught cleanly inside the per-row try/except — the worst kind of "green" failure.
+
+**Cause**: When the XLSForm uses `begin_group` / `end_group` (v4.1 has six top-level parts and many sub-groups), KoboToolbox API v2 returns submission JSON with **the group path prefixed onto every field name**: `part_a/tracking_id`, `part_b/b1/b1_chronic_illness`, `part_f/anthro/anthro_height_cm`, etc. `submission.get('tracking_id')` returns `None`, validation rejects it as a missing required field, the participant is never created.
+
+**Fix**: Flatten the submission dict before any field reads. Strip everything before the last `/` (XLSForm field names are globally unique within a form, so last-segment-wins is safe). Always preserve keys starting with `_` (Kobo metadata). See `flatten_kobo_submission()` in `etl/kobo_sync.py` — it's idempotent, so calling it on already-flat dicts is a no-op.
+
 ---
 
 ## Architecture Rules
@@ -424,14 +433,19 @@ Setting `@page { size: 50mm 25mm }` has no effect if the printer driver doesn't 
 ---
 
 ## KoboToolbox Sync Strategy
+- **Active form**: `tgma_v4_1` version `2026-04-27-v4.1` (XLSForm v4.1 — heavy `begin_group` nesting)
 - **Trigger**: Manual only — PI/Co-PI/Bioinformatician clicks "Sync Now" in UI (`/kobo`)
 - **Modes**: Incremental (since last sync) or Full (re-fetch everything)
 - **Critical fields (REJECT if missing)**: `tracking_id`, `full_name`, `gender`, `district`
 - **Optional fields (accept as NULL)**: age, DOB, GPS, anthropometrics, lifestyle, environment, menstrual
+- **Group flattening**: `flatten_kobo_submission()` strips group-path prefixes from every key first thing — see mistake #24. Idempotent.
+- **Multi-version field reads**: `_first(sub, 'v4.1_name', 'v3_name')` reads new names with old-name fallback so historical submissions still parse.
+- **Slug → midpoint** for select_one fields that target numeric DB columns (sitting hours, screen time, meals/day, family size). Maps live in `etl/kobo_sync.py` next to the field-rename table.
+- **Gender slug**: v4.1 sends `male`/`female`; v3 sent `M`/`F`. Both accepted via `GENDER_SLUG_TO_CODE`.
+- **District**: v4.1 sends 2-letter code directly; v3 sent slug (`west_tripura`). Both accepted via `DISTRICT_SLUG_TO_CODE`. `district='other'` rejected (non-Tripura participants don't fit the tracking-ID schema).
 - **Idempotent**: Upserts by `tracking_id` — syncing same submission twice updates existing record
 - **NULL-safe**: Only overwrites with non-NULL values; empty optional sections don't create empty related records
-- **GPS out-of-bounds**: WARNING logged but submission accepted (not rejected)
-- **Gender/District fallback**: Derived from tracking_id if missing from form fields
+- **GPS**: Read from `_geolocation` array first, then v4.1 `gps_location` geopoint string (`"lat lon alt acc"`), then legacy `gps_latitude`/`gps_longitude`. Out-of-bounds → WARNING, not rejection.
 - **Sync log**: Every run stored in `kobo_sync_log` with counts + per-submission JSON details
 - **API**: KoboToolbox REST API v2, paginated (100/page), sorted by `_submission_time`
 - **State file**: `etl/.kobo_sync_state.json` stores last sync timestamp for incremental mode
@@ -440,6 +454,9 @@ Setting `@page { size: 50mm 25mm }` has no effect if the printer driver doesn't 
 
 ## Git History (as of April 2026)
 ```
+(pending) Align platform to XLSForm v4.1; fix silent KoboSync bug (group-prefixed JSON keys, mistake #24)
+27f9eea Align platform to KoboToolbox XLSForm v3 (NT/GT/UK districts, slug-aware sync, yn_to_bool fix)
+560ca7a Update CLAUDE.md: full how-it-works narrative, label printing details, mistake #22-23
 2749d22 Split Consent + Assent into separate labels (9 → 10 per participant)
 93abd18 QR links to participant page, 3-digit IDs, larger label text, remove footer
 f288602 Switch thermal labels to QR codes, fix 25mm sticker fit, add ID delete

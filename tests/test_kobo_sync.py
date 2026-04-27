@@ -7,7 +7,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from etl.kobo_sync import (validate_submission, map_submission, safe_float, safe_int,
-                            parse_date, yn_to_bool)
+                            parse_date, yn_to_bool, flatten_kobo_submission)
 
 
 class TestValidateSubmission:
@@ -224,6 +224,159 @@ class TestHealthYnRegression:
         assert error is None
         assert mapped['health']['chronic_illness'] is False
         assert mapped['health']['antibiotics_3mo'] is True
+
+
+class TestV41GroupFlattening:
+    """XLSForm v4.1 has heavy `begin_group` nesting. KoboToolbox API v2 returns
+    submission keys with the group path prefixed (e.g. `part_a/tracking_id`).
+    Without flattening, `submission.get('tracking_id')` returns None and every
+    submission is silently rejected as `Missing tracking_id` — sync log shows
+    `status='success'` while persisting zero rows.
+
+    These tests guard against that regression.
+    """
+
+    def test_flatten_strips_group_prefix(self):
+        sub = {
+            'part_a/tracking_id': 'TGMA-WT-F-001',
+            'part_a/full_name': 'Riya Debbarma',
+            'part_b/b1/b1_chronic_illness': 'no',
+            '_id': '42',                # underscore-prefixed Kobo metadata preserved
+            '_submission_time': '2026-04-27T10:30:00',
+        }
+        flat = flatten_kobo_submission(sub)
+        assert flat['tracking_id'] == 'TGMA-WT-F-001'
+        assert flat['full_name'] == 'Riya Debbarma'
+        assert flat['b1_chronic_illness'] == 'no'   # last segment of deep nesting
+        assert flat['_id'] == '42'                  # untouched
+        assert flat['_submission_time'] == '2026-04-27T10:30:00'
+
+    def test_flatten_idempotent_on_flat_dict(self):
+        sub = {'tracking_id': 'TGMA-WT-F-001', 'full_name': 'X'}
+        assert flatten_kobo_submission(sub) == sub
+
+    def test_validate_accepts_v41_grouped_submission(self):
+        sub = {
+            'part_a/tracking_id': 'TGMA-NT-F-007',
+            'part_a/full_name': 'Test',
+            'part_a/gender': 'female',  # v4.1 slug
+            'part_a/district': 'NT',    # v4.1 direct 2-letter
+        }
+        tid, error = validate_submission(sub)
+        assert error is None
+        assert tid == 'TGMA-NT-F-007'
+
+    def test_map_v41_grouped_submission_full_path(self):
+        """End-to-end: a realistic v4.1 submission produces populated dicts
+        for participant + health + anthro + lifestyle + environment."""
+        sub = {
+            'part_a/tracking_id': 'TGMA-WT-F-001',
+            'part_a/full_name': 'Riya Debbarma',
+            'part_a/gender': 'female',
+            'part_a/district': 'WT',
+            'part_a/date_of_birth': '2010-05-15',
+            'part_a/age_years': '15',
+            'part_a/village_town_ward': 'Agartala Ward 7',
+            'part_a/school_name': 'Govt HS Agartala',
+            'part_a/class_grade': 'class_10',
+            'part_a/religion': 'hindu',
+            'part_a/community_tribe': 'tripuri',
+            'part_a/mother_tongue': 'kokborok',
+            'part_b/b1/b1_chronic_illness': 'no',
+            'part_b/b1/b1_recent_antibiotics': 'yes',
+            'part_b/b3/b3_delivery_mode': 'c_section',
+            'part_b/b3/b3_breastfed': 'exclusive',
+            'part_c/c1/c1_sitting_weekday': '2_4',
+            'part_c/c1/c1_sitting_weekend': '6_8',
+            'part_c/c3/c3_meals_per_day': '3_plus_snacks',
+            'part_c/c4/c4_screen_total': '4_6',
+            'part_c/c4/c4_sleep_quality': 'good',
+            'part_c/c5/c5_q1': '2',
+            'part_c/c5/c5_q2': '3',
+            'part_c/c6/c6_household_smoke': 'no',
+            'part_d/d1/d1_water_source': 'municipal',
+            'part_d/d2/d2_income': 'le_10k',
+            'part_d/d2/d2_family_size': '4_5',
+            'part_d/d2/d2_father_education': 'higher_sec',
+            'part_e/e_menarche': 'yes',
+            'part_e/e_menarche_age': '13',
+            'part_e/e_cycle_regular': 'regular',
+            'part_f/anthro/anthro_height_cm': '155.5',
+            'part_f/anthro/anthro_weight_kg': '48.2',
+            'part_f/anthro/anthro_waist_cm': '68.0',
+            'part_f/anthro/anthro_hip_cm': '85.0',
+            'part_f/consent/consent_signed_paper': 'yes',
+            'part_f/consent/assent_signed_paper': 'yes',
+            'part_f/consent/photo_consent': 'yes',
+            '_id': '999',
+            '_submission_time': '2026-04-27T10:30:00',
+            '_geolocation': [23.5, 91.5],
+        }
+        mapped, error = map_submission(sub)
+        assert error is None, f'unexpected error: {error}'
+
+        # Participant
+        p = mapped['participant']
+        assert p['tracking_id'] == 'TGMA-WT-F-001'
+        assert p['gender'] == 'F'                      # slug 'female' translated
+        assert p['district'] == 'WT'
+        assert p['village_town'] == 'Agartala Ward 7'  # v4.1 field name
+        assert p['school_class'] == 'Govt HS Agartala — Class 10'  # concatenated
+        assert p['religion'] == 'hindu'
+        assert p['consent_parent'] is True             # v4.1 field name
+        assert p['assent_participant'] is True
+
+        # Health: bool('no') would be True; yn_to_bool fixes that
+        assert mapped['health']['chronic_illness'] is False
+        assert mapped['health']['antibiotics_3mo'] is True
+        assert mapped['health']['delivery_mode'] == 'csection'   # c_section normalized
+        assert mapped['health']['breastfed'] is True             # exclusive → True
+
+        # Anthro: numeric coercion via anthro_* names
+        assert mapped['anthro']['height_cm'] == 155.5
+        assert mapped['anthro']['weight_kg'] == 48.2
+
+        # Lifestyle: slug → midpoint conversion
+        assert mapped['lifestyle']['sedentary_weekday'] == 3.0   # '2_4' midpoint
+        assert mapped['lifestyle']['sedentary_weekend'] == 7.0   # '6_8' midpoint
+        assert mapped['lifestyle']['meals_per_day'] == 3         # '3_plus_snacks' → 3
+        assert mapped['lifestyle']['daily_screen'] == 5.0        # '4_6' midpoint
+        assert mapped['lifestyle']['sleep_quality'] == 'good'
+        assert mapped['lifestyle']['pss_control'] == 2
+        assert mapped['lifestyle']['passive_smoke'] is False
+
+        # Environment
+        assert mapped['environment']['water_source'] == 'municipal'
+        assert mapped['environment']['household_income'] == 'le_10k'
+        assert mapped['environment']['household_size'] == 5      # '4_5' midpoint
+
+        # Menstrual
+        assert mapped['menstrual']['menstruation_started'] is True
+        assert mapped['menstrual']['menarche_age'] == 13
+        assert mapped['menstrual']['cycle_regularity'] == 'regular'
+
+    def test_v3_flat_submission_still_works(self):
+        """Regression guard: pre-v4.1 flat submissions must still parse correctly."""
+        sub = {
+            'tracking_id': 'TGMA-WT-F-0001',
+            'full_name': 'Legacy Person',
+            'gender': 'F',                # 2-letter (pre-v4.1)
+            'district': 'west_tripura',   # v3 slug
+            'chronic_illness': 'no',
+            'delivery_mode': 'csection',
+            'sedentary_weekday': '4.5',   # legacy numeric
+            'meals_per_day': '3',
+            '_id': '1',
+            '_submission_time': '2026-03-01T10:00:00',
+        }
+        mapped, error = map_submission(sub)
+        assert error is None
+        assert mapped['participant']['district'] == 'WT'
+        assert mapped['participant']['gender'] == 'F'
+        assert mapped['health']['chronic_illness'] is False
+        assert mapped['health']['delivery_mode'] == 'csection'
+        assert mapped['lifestyle']['sedentary_weekday'] == 4.5
+        assert mapped['lifestyle']['meals_per_day'] == 3
 
 
 class TestHelpers:
